@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>its your doooommmmmmm</title>
+    <style>
+        @font-face {
+            font-family: 'PixelFont';
+            src: url('src/ui/VT323.ttf');
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            overflow: hidden;
+            font-family: 'PixelFont', monospace;
+            height: 100%;
+            width: 100%;
+            color: white;
+            /* padding-top: 1%; */
+        }
+
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+        }
+
+        #crosshair::before {
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            transform: translateX(-50%);
+        }
+
+        #crosshair::after {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+
+        #player-ui {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 1.2em;
+            z-index: 500;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        }
+
+        #player-ui div {
+            margin-bottom: 4px;
+        }
+
+        #death-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: red;
+            font-size: 5vw;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+            user-select: none;
+            pointer-events: none;
+        }
+
+        #death-screen h1 {
+            font-size: 1em;
+            margin: 0 0 20px;
+        }
+
+        #death-screen p {
+            font-size: 0.3em;
+            color: white;
+            opacity: 0.8;
+            margin: 0;
+        }
+
+        #damage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 0, 0, 0.3);
+            display: none;
+            z-index: 900;
+        }
+
+        /* -------- WAITING ROOM UI -------- */
+
+        #waiting-room {
+            position: fixed;
+            inset: 0;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(2px);
+            z-index: 950;
+        }
+
+        .waiting-box {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #aaa;
+            padding: 2.5em;
+            width: min(90vw, 600px);
+            font-size: 1.5em;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            filter: contrast(120%) saturate(150%);
+            text-shadow:
+                0 0 4px #fff,
+                0 0 8px #ccc;
+        }
+
+        .waiting-box h1 {
+            font-size: 2em;
+            margin-bottom: 0.6em;
+            color: #ffd6d6;
+        }
+
+        .waiting-box p {
+            font-size: 1.2em;
+            color: #cfcfcf;
+            margin: 0.5em 0;
+        }
+
+        #player-list {
+            margin-top: 1.2em;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+        }
+
+        .player-entry {
+            font-size: 1em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            width: fit-content;
+        }
+
+        .player-entry.self {
+            color: yellow;
+        }
+
+        .player-entry.other {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="player-ui">
+        <div id="player-health-display">Health: 100</div>
+        <div id="player-ammo-display">Weapon Ammo: -</div>
+        <div id="crosshair"></div>
+    </div>
+
+    <div id="death-screen">
+        <h1>YOU DIED!</h1>
+        <p>Respawning...</p>
+    </div>
+
+    <div id="damage"></div>
+
+    <div id="waiting-room">
+        <div class="waiting-box">
+            <h1>Waiting for Players...</h1>
+            <p id="waiting-subtext">1 / 4 Ready</p>
+            <div id="player-list">
+                <!-- Player entries get appended here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+
+</html>
