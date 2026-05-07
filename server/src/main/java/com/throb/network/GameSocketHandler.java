@@ -1,40 +1,43 @@
 package com.throb.network;
 
+import com.throb.game.RoomManager;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.util.concurrent.CopyOnWriteArrayList;
-
 public class GameSocketHandler extends TextWebSocketHandler {
-    private static final CopyOnWriteArrayList<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
+
+    private final RoomManager roomManager = RoomManager.getInstance();
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        sessions.add(session);
-        System.out.println("Player connected w session id: " + session.getId());
-
-        session.sendMessage(
-                new TextMessage("{\\\"type\\\": \\\"SERVER_HELLO\\\", \\\"msg\\\": \\\"Welcome to Throb!\\\"}\""));
+        session.sendMessage(new TextMessage("{\"type\": \"SERVER_HELLO\"}"));
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        String payload = message.getPayload();
-        System.out.println("recieved from " + session.getId() + ": " + payload);
+        JsonNode node = mapper.readTree(message.getPayload());
+        if (!node.has("type"))
+            return;
 
-        // testing echo to all connections
-        for (WebSocketSession s : sessions) {
-            if (s.isOpen()) {
-                s.sendMessage(new TextMessage("{\\\"type\\\": \\\"ECHO\\\", \\\"data\\\": \" + payload + \"}"));
-            }
+        String type = node.get("type").asString();
+
+        if ("JOIN".equals(type)) {
+            String roomId = node.has("roomCode") ? node.get("roomCode").asString() : "DEFAULT";
+            roomManager.handleJoin(roomId, session);
+        } else {
+            roomManager.handleMessage(session, message.getPayload());
         }
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        sessions.remove(session);
-        System.out.println("Player w session id " + session.getId() + " disconnected :(");
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        roomManager.handleDisconnect(session);
     }
 }
