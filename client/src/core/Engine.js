@@ -70,7 +70,7 @@ export default class Engine {
 
         if (this.currentGameState === this.gameState.WAITING)
             setTimeout(() => {
-                this.stateManager.setState(WaitingState);
+                this.stateManager.setState(GameplayState);
             }, 500);
 
         window.addEventListener('keydown', (e) => {
