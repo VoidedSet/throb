@@ -22,7 +22,7 @@ public class RoomManager {
         rooms.putIfAbsent(roomId, new Room(roomId));
         Room room = rooms.get(roomId);
 
-        Player player = new Player(roomId, session);
+        Player player = new Player(session.getId(), session);
         room.players.put(session.getId(), player);
         sessionToRoomMap.put(session.getId(), roomId);
 
@@ -46,8 +46,12 @@ public class RoomManager {
             Room room = rooms.get(roomId);
             if (room != null) {
                 room.players.remove(session.getId());
-                if (room.players.isEmpty())
+                System.out.println("Player " + session.getId() + " disconnected.");
+
+                if (room.players.isEmpty()) {
                     rooms.remove(roomId);
+                    System.out.println("Room " + roomId + " stopped and deleted (" + rooms.size() + ") room(s) left");
+                }
             }
         }
     }
