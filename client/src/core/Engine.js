@@ -68,17 +68,17 @@ export default class Engine {
             this.netManger = new NetworkManger(this, this.roomCode, this.playerLimit);
         }
 
-        if (this.currentGameState === this.gameState.WAITING)
-            setTimeout(() => {
-                this.stateManager.setState(GameplayState);
-            }, 500);
+        // if (this.currentGameState === this.gameState.WAITING)
+        //     setTimeout(() => {
+        //         this.stateManager.setState(GameplayState);
+        //     }, 500);
 
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'KeyH') {
-                console.log("Heart is exploding");
-                this.stateManager.setState(HeartExploded);
-            }
-        })
+        // window.addEventListener('keydown', (e) => {
+        //     if (e.code === 'KeyH') {
+        //         console.log("Heart is exploding");
+        //         this.stateManager.setState(HeartExploded);
+        //     }
+        // })
 
     }
 

@@ -19,6 +19,12 @@ public class Room {
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
     private final ObjectMapper mapper = new ObjectMapper();
 
+    private RoomState state = RoomState.WAITING;
+    private int playerLimit = 2;
+    private long stateEndTime = 0;
+
+    private int bloodGauge = 0, maxBloodGauge = 400;
+
     public Room(String roomId) {
         this.roomId = roomId;
     }
@@ -64,32 +70,92 @@ public class Room {
         }
     }
 
+    private void updateLogic() {
+        long now = System.currentTimeMillis();
+
+        switch (state) {
+            case WAITING:
+                if (players.size() >= playerLimit) {
+                    state = RoomState.LOADOUT_SELECTION;
+                    stateEndTime = now + 10000; // will need to test how long to keep for now 10s
+                    System.out.println("Room " + roomId + " -> Loadout");
+                }
+                break;
+
+            case LOADOUT_SELECTION:
+                if (now >= stateEndTime) {
+                    state = RoomState.GAMEPLAY;
+                    System.out.println("Room " + roomId + " -> Gameplay");
+                }
+                break;
+
+            case GAMEPLAY:
+                if (bloodGauge >= maxBloodGauge) {
+                    state = RoomState.HEART_EXPLOADED;
+                    stateEndTime = now + 10000; // 10s for now will have to actually test client side
+                    System.out.println("Room " + roomId + " -> Heart Exploaded");
+                }
+                if (players.size() == 1) {
+                    state = RoomState.HEART_EXPLOADED;
+                    System.out.println("TEST");
+                }
+                break;
+
+            case HEART_EXPLOADED:
+                if (now >= stateEndTime) {
+                    state = RoomState.MATCH_RESULTS;
+                    stateEndTime = now + 15000;
+                    System.out.println("Room " + roomId + " -> Results");
+                }
+                break;
+
+            case MATCH_RESULTS:
+                if (now >= stateEndTime) {
+                    System.out.println("Match in Room " + roomId + " end. kicking players and closing room");
+                    // handle kick and delete later
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
     private void tick() {
         if (players.isEmpty())
             return;
 
+        updateLogic();
+
         try {
-            ObjectNode state = mapper.createObjectNode();
-            state.put("type", "STATE_UPDATE");
-            ObjectNode playersNode = state.putObject("players");
+            ObjectNode root = mapper.createObjectNode();
 
-            for (Player p : players.values()) {
-                ObjectNode pNode = playersNode.putObject(p.id);
+            root.put("type", "STATE_UPDATE");
+            root.put("state", state.id);
+            root.put("blood", bloodGauge);
 
-                ObjectNode pos = pNode.putObject("pos");
-                pos.put("x", p.x);
-                pos.put("y", p.y);
-                pos.put("z", p.z);
-
-                ObjectNode rot = pNode.putObject("rot");
-                rot.put("x", p.rotX);
-                rot.put("y", p.rotY);
-                rot.put("z", p.rotZ);
-
-                pNode.put("hp", p.health);
+            if (state == RoomState.LOADOUT_SELECTION || state == RoomState.MATCH_RESULTS) {
+                long timeLeft = Math.max(0, (stateEndTime - System.currentTimeMillis()) / 1000);
+                root.put("timer", timeLeft);
             }
 
-            broadcast(mapper.writeValueAsString(state));
+            if (state == RoomState.GAMEPLAY) {
+                ObjectNode playersNode = root.putObject("players");
+                for (Player p : players.values()) {
+                    ObjectNode pNode = playersNode.putObject(p.id);
+                    ObjectNode pos = pNode.putObject("pos");
+                    pos.put("x", p.x);
+                    pos.put("y", p.y);
+                    pos.put("z", p.z);
+                    ObjectNode rot = pNode.putObject("rot");
+                    rot.put("x", p.rotX);
+                    rot.put("y", p.rotY);
+                    rot.put("z", p.rotZ);
+                    pNode.put("hp", p.health);
+                }
+            }
+
+            broadcast(mapper.writeValueAsString(root));
         } catch (Exception e) {
             e.printStackTrace();
         }

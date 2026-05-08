@@ -1,0 +1,56 @@
+Plan: Client Code Refactoring & Bug Fixes
+Here is the plan mapped out based on the transition to the Java WebSocket backend and the sanity-check auth model we discussed. We will strip the unearned client authority and fix the major visual and flow crashes.
+
+Steps
+
+Phase 1: Network & Protocol Fixes (Client-Server Alignment)
+
+- Replace legacy Socket.io .emit calls with native WebSocket .send(JSON.stringify) payloads.
+- Fix the "Doppelganger Bug" (rendering your own body locally) by fetching a valid id from the Java server's initial handshake instead of native WebSocket (which lacks an implicit ID).
+- Implement Hybrid Damage Authority: Rip out local hit damage applications. The client will send a SHOOT packet containing target intent and weapon type. The Java backend will check basic validity (shooter ammo, target alive state, valid distance/angle vectors) and then broadcast DAMAGE / DEATH.
+
+
+Phase 2: Game Flow & States Integration
+
+Remove the forced 500ms transition hack running locally that bypasses multiplayer waiting rules.
+Fix offline crashes by adding null-checks to multiplayer array lookups for offline compatibility.
+Delegate Match Life-Cycle to server broadcasts (e.g., waiting for MATCH_START from the backend vs progressing locally).
+Add state-teardown logic to clear orphaned window event bindings when switching states, preventing exponential memory leaks.
+Remove global debug keys (like immediately forcing death states) and allow state machines to safely restart their current loops.
+
+
+Phase 3: Visuals, Combat & UI Bugs
+
+Fix Enemy Desync: Copy physics collider coordinates directly to the visual mesh.position during collision resolution so hitboxes don't visually separate from the meshes upon touching walls.
+Fix weapon UI crashes: Remove direct DOM lookup functions (document.getElementById) as UI is natively canvas-based; port logic to the canvas HUD.
+Stop spinning an infinite requestAnimationFrame loop internally when non-automatic weapons aren't actively firing.
+Disable visual toggles on root UI instances when swapping menu tabs to prevent rendering text overlays blindly on top of each other.
+(Low Priority) Add defensive object parsing in map loaders to prevent hardcrashes if an artist updates a model hierarchy slightly.
+
+
+Relevant files
+
+multiplayer_dependancy.js — Update protocol syntaxes and session UUID assignments.
+NetworkManger.js — Update packet structure formatting.
+Engine.js — Clean up forced timeouts block and debug shortcut hacks.
+WaitingState.js — Establish start bounds and offline-safe bounds.
+GameplayState.js — Add cleanup logic on exit().
+Weapons.js — Transition hit auth, fix DOM HUD crashes, stop background process execution.
+Enemies.js — Update model translations during update() collision runs.
+MenuLogic.js — Toggle UI layers cleanly.
+World.js — Apply defensive programming on map object tree lookups.
+
+
+Verification
+
+Run a local client loop and verify that weapon shots send properly formatted JSON through WebSockets without generating TypeErrors.
+Boot two simultaneous clients in multiplayer and ensure they wait indefinitely on the "Waiting" match screen until the server triggers the countdown/start phase.
+Use Chrome Dev Tools Performance monitor to ensure switching in and out of the game repeatedly doesn't skyrocket event listener memory leaks.
+Ram an enemy into a map boundary and ensure the model visual directly tracks with the invisible physics collider without freezing in place.
+
+
+Decisions
+
+Damage logic moved to a Hybrid "Sanity Check" validation design (Server does math validation on Client's hit claim).
+Art logic/shaders intentionally bypassed in current review scope.
+Hardcoded map dependencies added to list but deprioritized for initial prototype milestone.

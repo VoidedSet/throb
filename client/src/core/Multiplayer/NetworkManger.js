@@ -35,10 +35,12 @@ export default class NetworkManger {
             const data = JSON.parse(event.data);
 
             if (data.type === 'SERVER_HELLO') {
-                console.log("[Server] Handshake success");
+                this.localId = data.id;
+                console.log("[Server] Handshake success. My ID:", this.localId);
             }
             else if (data.type === 'STATE_UPDATE') {
-                this.handleStateUpdate(data.players);
+
+                this.handleRoomStateUpdate(data);
             }
         };
 
@@ -47,38 +49,92 @@ export default class NetworkManger {
         };
     }
 
-    handleStateUpdate(playersData) {
-        // Find local ID if not set (temporary hack until we send it explicitely in JOIN ack)
-        if (!this.localId) {
-            // First update, just pick the first key or wait for better auth
-            // We will fix exact ID matching next.
+    handleRoomStateUpdate(data) {
+        const sm = this.sm;
+        // 1. State Switch Logic
+        if (this.currentGameState !== data.state) {
+            this.currentGameState = data.state;
+
+            switch (data.state) {
+                case 0: // WAITING
+                    console.log('[Room] Waiting...');
+                    sm.setState(WaitingState);
+                    break;
+                case 1: // LOADOUT
+                    console.log('[Room] Loadout...');
+                    sm.setState(LoadoutSelectionState);
+                    break;
+                case 2: // GAMEPLAY
+                    console.log('[Room] Match Start!');
+                    sm.setState(GameplayState);
+                    if (!this.loadOut) this.loadOut = ['fist', 'pistol'];
+
+                    // Give weapons after a tiny delay so player object finishes loading
+                    setTimeout(() => {
+                        if (sm.currentState.engine.player) {
+                            sm.currentState.engine.player.weaponManager.weapon_inventory = this.loadOut;
+                        }
+                    }, 100);
+                    break;
+                case 3: // HEART_EXPLODED
+                    console.log('[Room] Heart Exploded!');
+                    sm.setState(HeartExploded);
+                    break;
+                case 4: // MATCH_RESULTS
+                    console.log('[Room] Results...');
+                    sm.setState(MatchResults);
+                    break;
+            }
         }
 
+        // 2. Sync Timers & HUD
+        if (data.timer !== undefined) {
+            if (sm.currentState instanceof LoadoutSelectionState) {
+                sm.currentState.countdown = data.timer;
+                sm.currentState.updateHUDText(
+                    sm.currentState.gunName,
+                    sm.currentState.gunType,
+                    sm.currentState.gunDamage,
+                    true,
+                    sm.currentState.loadout[0],
+                    sm.currentState.loadout[1]
+                );
+            }
+        }
+
+        // 3. Sync Players if in Gameplay
+        if (data.state === 2 && data.players) {
+            this.handleStateUpdate(data.players);
+        }
+    }
+
+    updatePlayerListUI() {
+        updatePlayerList([...this.currentRoomPlayerIDs], this.localId);
+    }
+
+    handleStateUpdate(playersData) {
         const incomingIds = new Set(Object.keys(playersData));
 
-        // 1. Spawn new players
         for (const id of incomingIds) {
             if (!this.currentRoomPlayerIDs.has(id)) {
                 this.currentRoomPlayerIDs.add(id);
-                console.log('+ [Room] Player joined:', id);
-                // Don't spawn self
-                // spawnRemotePlayers(new Vector3(0, 1, 0), this.scene, this.remotePlayers, id);
+                spawnRemotePlayers(new Vector3(0, 1, 0), this.scene, this.remotePlayers, id);
                 this.updatePlayerListUI();
             }
         }
 
-        // 2. Remove disconnected players
         for (const id of this.currentRoomPlayerIDs) {
             if (!incomingIds.has(id)) {
                 this.currentRoomPlayerIDs.delete(id);
-                console.log('- [Room] Player left:', id);
-                removeRemotePlayers(this.scene, this.remotePlayers, id);
+                if (id !== this.localId)
+                    removeRemotePlayers(this.scene, this.remotePlayers, id);
                 this.updatePlayerListUI();
             }
         }
 
-        // 3. Update positions
         for (const id in playersData) {
+            if (id === this.localId) continue; // Ignore own server pos
+
             const pData = playersData[id];
             const playerObj = this.remotePlayers[id];
 
@@ -89,10 +145,6 @@ export default class NetworkManger {
                 }
             }
         }
-    }
-
-    updatePlayerListUI() {
-        updatePlayerList([...this.currentRoomPlayerIDs], this.localId);
     }
 
     updatePlayerState() {

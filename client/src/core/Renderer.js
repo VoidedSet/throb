@@ -83,11 +83,11 @@ export default class Renderer {
 
         // this.ditherPass = new ShaderPass(dither);
 
-        this.composer.addPass(this.pixelatedPass)
-        this.composer.addPass(this.posterPass);
+        // this.composer.addPass(this.pixelatedPass)
+        // this.composer.addPass(this.posterPass);
 
-        this.composer.addPass(this.bloomPass)
-        this.composer.addPass(this.chromaticAberrationPass);
+        // this.composer.addPass(this.bloomPass)
+        // this.composer.addPass(this.chromaticAberrationPass);
 
         // this.composer.addPass(this.ditherPass);
 

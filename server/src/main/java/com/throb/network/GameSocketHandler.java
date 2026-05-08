@@ -17,7 +17,7 @@ public class GameSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        session.sendMessage(new TextMessage("{\"type\": \"SERVER_HELLO\"}"));
+        session.sendMessage(new TextMessage("{\"type\": \"SERVER_HELLO\", \"id\": \"" + session.getId() + "\"}"));
     }
 
     @Override
