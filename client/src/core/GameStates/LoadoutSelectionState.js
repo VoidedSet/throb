@@ -59,6 +59,7 @@ export class LoadoutSelectionState extends GameState {
 
     updateHUDText(gunName, gunType, damage, drawEquipText, selectedMelee = 'melee', selectedRanged = 'ranged') {
         const ctx = this.gunCtx;
+        if (!ctx) return;
         ctx.clearRect(0, 0, this.gunCanvas.width, this.gunCanvas.height);
 
         if (gunName === "Fist'er") gunName = "Fist`er  ";
@@ -206,10 +207,16 @@ export class LoadoutSelectionState extends GameState {
 
         this.engine.renderer.lerpBloomTo(0.05, 0.9);
 
-        if (!this.loadout)
-            this.loadout = ['fist', 'pistol'];
-        // socket.emit('playerInventory', { roomCode: this.engine.roomCode, loadout: this.loadout });
-
+        if (!this.loadout) this.loadout = ['fist', 'pistol'];
+        
+        // Save the loadout so GameplayState/NetworkManager can use it
+        this.engine.netManger.loadOut = this.loadout;
+        
+        // Let the backend know what loadout we selected
+        socket.send(JSON.stringify({ 
+            type: 'LOADOUT', 
+            loadout: this.loadout 
+        }));
     }
 
     setupEnvironment() {

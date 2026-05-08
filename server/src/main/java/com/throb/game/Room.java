@@ -4,6 +4,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.throb.model.Player;
+import com.throb.model.Vector3;
+
 import org.springframework.web.socket.TextMessage;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,27 +43,108 @@ public class Room {
             JsonNode node = mapper.readTree(payload);
             String type = node.has("type") ? node.get("type").asString() : "";
 
-            if ("INPUT".equals(type)) {
-                Player p = players.get(playerId);
-                if (p != null) {
-                    JsonNode pos = node.get("pos");
-                    JsonNode rot = node.get("rot");
+            Player p = players.get(playerId);
+            if (p == null)
+                return;
 
-                    if (pos != null) {
-                        if (pos.has("x"))
-                            p.x = pos.get("x").asDouble();
-                        if (pos.has("y"))
-                            p.y = pos.get("y").asDouble();
-                        if (pos.has("z"))
-                            p.z = pos.get("z").asDouble();
+            if ("LOADOUT".equals(type) && state == RoomState.LOADOUT_SELECTION) {
+                JsonNode loadoutNode = node.get("loadout");
+                if (loadoutNode != null && loadoutNode.isArray()) {
+                    p.loadout = new String[]{loadoutNode.get(0).asText(), loadoutNode.get(1).asText()};
+                    System.out.println("✅ " + p.id + " selected loadout: " + p.loadout[0] + ", " + p.loadout[1]);
+                }
+            } else if ("INPUT".equals(type) && state == RoomState.GAMEPLAY) {
+                // ... (Keep your existing movement/rotation logic here) ...
+                JsonNode pos = node.get("pos");
+                JsonNode rot = node.get("rot");
+                if (pos != null) {
+                    if (pos.has("x"))
+                        p.x = pos.get("x").asDouble();
+                    if (pos.has("y"))
+                        p.y = pos.get("y").asDouble();
+                    if (pos.has("z"))
+                        p.z = pos.get("z").asDouble();
+                }
+                if (rot != null) {
+                    if (rot.has("x"))
+                        p.rotX = rot.get("x").asDouble();
+                    if (rot.has("y"))
+                        p.rotY = rot.get("y").asDouble();
+                    if (rot.has("z"))
+                        p.rotZ = rot.get("z").asDouble();
+                }
+            } else if ("SHOOT".equals(type) && state == RoomState.GAMEPLAY) {
+                String targetId = node.has("targetId") ? node.get("targetId").asString() : "";
+                String weaponUsed = node.has("weapon") ? node.get("weapon").asString() : "";
+                Player target = players.get(targetId);
+
+                // Anti-Cheat Sanity Checks
+                boolean hasWeapon = false;
+                if (p.loadout != null) {
+                    for (String w : p.loadout) {
+                        if (w.equalsIgnoreCase(weaponUsed)) {
+                            hasWeapon = true; break;
+                        }
                     }
-                    if (rot != null) {
-                        if (rot.has("x"))
-                            p.rotX = rot.get("x").asDouble();
-                        if (rot.has("y"))
-                            p.rotY = rot.get("y").asDouble();
-                        if (rot.has("z"))
-                            p.rotZ = rot.get("z").asDouble();
+                }
+                
+                if (!hasWeapon) {
+                    System.out.println("❌ " + p.id + " tried to shoot with unequipped weapon: " + weaponUsed);
+                    return;
+                }
+
+                if (target != null && target.health > 0) {
+
+                    // 1. Distance Check (Is target within 100 units?)
+                    double dist = p.getPosition().distanceTo(target.getPosition());
+                    if (dist < 100.0) {
+
+                        // 2. Angle Check (Is shooter actually facing the target?)
+                        JsonNode dirNode = node.get("dir");
+                        if (dirNode != null) {
+                            Vector3 shootDir = new Vector3(
+                                    dirNode.get("x").asDouble(),
+                                    dirNode.get("y").asDouble(),
+                                    dirNode.get("z").asDouble()).normalize();
+
+                            // Vector from shooter to target
+                            Vector3 toTarget = target.getPosition().subtract(p.getPosition()).normalize();
+
+                            // Dot product checks the angle.
+                            // > 0.85 gives a small cone of leniency for lag/hitboxes.
+                            double dot = shootDir.dot(toTarget);
+                            if (dot > 0.85) {
+
+                                // HIT CONFIRMED! Server takes action.
+                                System.out.println("[T] " + p.id + " shot and hit " + target.id + "!");
+                                target.health -= 25; // Hardcoded damage for now
+                                bloodGauge += 25; // Fill the room blood gauge
+
+                                ObjectNode dmgPacket = mapper.createObjectNode();
+
+                                if (target.health <= 0) {
+                                    p.kills++;
+                                    target.deaths++;
+                                    target.health = 100; // Auto respawn for now
+                                    // TODO: Move target.x, target.y, target.z to a random spawn point
+
+                                    dmgPacket.put("type", "KILL");
+                                    dmgPacket.put("killerId", p.id);
+                                    dmgPacket.put("killedId", target.id);
+                                } else {
+                                    dmgPacket.put("type", "DAMAGE");
+                                    dmgPacket.put("targetId", target.id);
+                                    dmgPacket.put("hp", target.health);
+                                }
+
+                                // Tell everyone what happened instantly (don't wait for tick)
+                                broadcast(dmgPacket.toString());
+                            } else {
+                                System.out.println("❌ " + p.id + " shot, but missed angle check!");
+                            }
+                        }
+                    } else {
+                        System.out.println("❌ " + p.id + " shot, but missed distance check!");
                     }
                 }
             }
@@ -152,6 +235,10 @@ public class Room {
                     rot.put("y", p.rotY);
                     rot.put("z", p.rotZ);
                     pNode.put("hp", p.health);
+                    if (p.loadout != null && p.loadout.length == 2) {
+                        pNode.put("w1", p.loadout[0]);
+                        pNode.put("w2", p.loadout[1]);
+                    }
                 }
             }
 

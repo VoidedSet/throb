@@ -42,6 +42,21 @@ export default class NetworkManger {
 
                 this.handleRoomStateUpdate(data);
             }
+            else if (data.type === 'DAMAGE') {
+                console.log(`[Server] DAMAGE! Target ${data.targetId} now has ${data.hp} HP.`);
+                if (data.targetId === this.localId) {
+                    showDamage();
+                }
+            }
+            else if (data.type === 'KILL') {
+                console.log(`[Server] KILL! ${data.killerId} killed ${data.killedId}.`);
+                if (data.killedId === this.localId) {
+                    showDeathScreen();
+                }
+                if (data.killedId !== this.localId) {
+                    respawnRemotePlayer(this.scene, this.remotePlayers, data.killedId);
+                }
+            }
         };
 
         socket.onclose = () => {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import Particles from '../core/ParticleSystem';
-import { damageRemotePlayer } from '../core/Multiplayer/multiplayer_dependancy';
+import { socket } from '../core/Multiplayer/NetworkManger';
 
 export const weapons = {
     fist: {
@@ -329,8 +329,13 @@ export default class WeaponManager {
 
 
             if (target.object.userData.enemy) {
-                // target.object.userData.enemy.takeDamage(this.current_weapon_stats.damage);
-                damageRemotePlayer(target.object.userData.enemy, this.current_weapon)
+                // Send the exact target, raycast direction, and weapon used to the server
+                socket.send(JSON.stringify({
+                    type: 'SHOOT',
+                    targetId: target.object.userData.enemy, 
+                    weapon: this.current_weapon,
+                    dir: { x: direction.x, y: direction.y, z: direction.z }
+                }));
             }
         }
     }
