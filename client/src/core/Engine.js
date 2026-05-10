@@ -16,6 +16,8 @@ import { HeartExploded } from './GameStates/HeartExploded.js';
 export default class Engine {
     constructor(roomCode) {
 
+        window.engine = this;
+
         this.gameState = {
             WAITING: 0,
             LOADOUT_SELECTION: 1,

@@ -54,6 +54,10 @@ export default class NetworkManger {
                 if (data.killedId === this.localId) {
                     showDeathScreen();
 
+                    setTimeout(() => {
+                        hideDeathScreen();
+                    }, 2500)
+
                     if (data.spawn && this.sm.currentState?.engine?.player) {
                         const p = this.sm.currentState.engine.player;
                         p.physics.playerCollider.start.set(data.spawn.x, data.spawn.y, data.spawn.z);
