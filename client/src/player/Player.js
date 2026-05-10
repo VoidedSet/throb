@@ -137,6 +137,13 @@ export default class Player {
         });
 
 
+        //console log player location press L
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'l') {
+                const pos = this.controls.object.position;
+                console.log(`Player location: x=${pos.x.toFixed(2)}, y=${pos.y.toFixed(2)}, z=${pos.z.toFixed(2)}`);
+            }
+        });
     }
 
     updatePlayerVitals(deltaTime, targetBPM) {

@@ -27,6 +27,12 @@ public class Room {
 
     private int bloodGauge = 0, maxBloodGauge = 400;
 
+    private final Vector3[] spawns = {
+            new Vector3(-31.71, -8.56, -35.26), new Vector3(24.60, -7.10, -13.38),
+            new Vector3(34.02, -8.54, 19.26), new Vector3(-28.52, -8.55, 32.34)
+
+    };
+
     public Room(String roomId) {
         this.roomId = roomId;
     }
@@ -52,7 +58,7 @@ public class Room {
                 if (loadoutNode != null && loadoutNode.isArray()) {
                     p.setLoadout(new String[] { loadoutNode.get(0).asString(), loadoutNode.get(1).asString() });
                     p.ammo = getWeaponAmmo(p.loadout[1]);
-                    System.out.println("✅ " + p.id + " selected loadout: " + p.loadout[0] + ", " + p.loadout[1]);
+                    System.out.println("[" + p.id + "] selected loadout: " + p.loadout[0] + ", " + p.loadout[1]);
                 }
             } else if ("WEAPON_SWITCH".equals(type)) {
                 int slot = node.has("slot") ? node.get("slot").asInt(0) : 0;
@@ -153,12 +159,21 @@ public class Room {
                                 if (target.health <= 0) {
                                     p.kills++;
                                     target.deaths++;
-                                    target.health = 100; // Auto respawn for now
-                                    // TODO: Move target.x, target.y, target.z to a random spawn point
+
+                                    Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
+                                    target.health = 100;
+                                    target.x = sp.x;
+                                    target.y = sp.y;
+                                    target.z = sp.z;
 
                                     dmgPacket.put("type", "KILL");
                                     dmgPacket.put("killerId", p.id);
                                     dmgPacket.put("killedId", target.id);
+
+                                    ObjectNode spNode = dmgPacket.putObject("spawn");
+                                    spNode.put("x", sp.x);
+                                    spNode.put("y", sp.y);
+                                    spNode.put("z", sp.z);
                                 } else {
                                     dmgPacket.put("type", "DAMAGE");
                                     dmgPacket.put("targetId", target.id);
@@ -177,7 +192,9 @@ public class Room {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (
+
+        Exception e) {
             e.printStackTrace();
         }
     }
@@ -198,6 +215,16 @@ public class Room {
                 if (now >= stateEndTime) {
                     state = RoomState.GAMEPLAY;
                     System.out.println("Room " + roomId + " -> Gameplay");
+
+                    int i = 0;
+                    for (Player p : players.values()) {
+                        Vector3 sp = spawns[i % spawns.length];
+                        p.x = sp.x;
+                        p.y = sp.y;
+                        p.z = sp.z;
+                        p.health = 100;
+                        i++;
+                    }
                 }
                 break;
 
@@ -223,7 +250,9 @@ public class Room {
             case MATCH_RESULTS:
                 if (now >= stateEndTime) {
                     System.out.println("Match in Room " + roomId + " end. kicking players and closing room");
-                    // handle kick and delete later
+
+                    for (Player p : players.values())
+                        kickPlayer(p.id, "MATCH_ENDED");
                 }
                 break;
 
@@ -245,7 +274,8 @@ public class Room {
             root.put("state", state.id);
             root.put("blood", bloodGauge);
 
-            if (state == RoomState.LOADOUT_SELECTION || state == RoomState.MATCH_RESULTS) {
+            if (state == RoomState.LOADOUT_SELECTION || state == RoomState.MATCH_RESULTS
+                    || state == RoomState.GAMEPLAY) {
                 long timeLeft = Math.max(0, (stateEndTime - System.currentTimeMillis()) / 1000);
                 root.put("timer", timeLeft);
             }
@@ -321,5 +351,23 @@ public class Room {
             case "sniper" -> 80;
             default -> 0;
         };
+    }
+
+    // gracefully kicking player from a room!
+    public void kickPlayer(String targetId, String reason) {
+        Player target = players.get(targetId);
+        if (target != null && target.session.isOpen()) {
+            try {
+                ObjectNode kickMsg = mapper.createObjectNode();
+                kickMsg.put("type", "KICKED");
+                kickMsg.put("reason", reason);
+                target.session.sendMessage(new TextMessage(kickMsg.toString()));
+
+                target.session.close();
+                System.out.println("[Room] Kicked player " + targetId + ". Reason: " + reason);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

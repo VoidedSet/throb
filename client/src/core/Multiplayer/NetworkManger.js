@@ -53,10 +53,23 @@ export default class NetworkManger {
                 console.log(`[Server] KILL! ${data.killerId} killed ${data.killedId}.`);
                 if (data.killedId === this.localId) {
                     showDeathScreen();
+
+                    if (data.spawn && this.sm.currentState?.engine?.player) {
+                        const p = this.sm.currentState.engine.player;
+                        p.physics.playerCollider.start.set(data.spawn.x, data.spawn.y, data.spawn.z);
+                        p.physics.playerCollider.end.set(data.spawn.x, data.spawn.y + 1.5, data.spawn.z);
+                        this.camera.position.set(data.spawn.x, data.spawn.y + 1.5, data.spawn.z);
+                    }
                 }
                 if (data.killedId !== this.localId) {
                     respawnRemotePlayer(this.scene, this.remotePlayers, data.killedId);
                 }
+            }
+            else if (data.type === 'KICKED') {
+                console.warn(`[Server] You were kicked. Reason: ${data.reason}`);
+                alert(`Kicked from server: ${data.reason}`);
+                socket.close();
+                window.location.href = '/';
             }
         };
 
@@ -84,7 +97,6 @@ export default class NetworkManger {
                     console.log('[Room] Match Start!');
                     sm.setState(GameplayState);
 
-                    // Show HTML HUD elements
                     const hud = document.getElementById('player-ui');
                     if (hud) hud.style.display = 'block';
 
@@ -95,21 +107,25 @@ export default class NetworkManger {
                         this.loadOut = ['fist', 'pistol'];
                     }
 
-                    // Give weapons after a tiny delay so player object finishes loading
                     setTimeout(() => {
                         if (sm.currentState.engine.player) {
-                            sm.currentState.engine.player.weaponManager.weapon_inventory = this.loadOut;
+                            const p = sm.currentState.engine.player;
+                            p.weaponManager.weapon_inventory = this.loadOut;
+
+                            // Snap local player to server-assigned spawn point
+                            if (localPlayer && localPlayer.pos) {
+                                p.physics.playerCollider.start.set(localPlayer.pos.x, localPlayer.pos.y, localPlayer.pos.z);
+                                p.physics.playerCollider.end.set(localPlayer.pos.x, localPlayer.pos.y + 1.5, localPlayer.pos.z);
+                                this.camera.position.set(localPlayer.pos.x, localPlayer.pos.y + 1.5, localPlayer.pos.z);
+                            }
+
                             if (localPlayer && typeof localPlayer.ammo === 'number') {
-                                sm.currentState.engine.player.weaponManager.ammo_left = {
+                                p.weaponManager.ammo_left = {
                                     [this.loadOut[1]]: localPlayer.ammo,
-                                    [this.loadOut[0]]: sm.currentState.engine.player.weaponManager.ammo_left[this.loadOut[0]] ?? 0
+                                    [this.loadOut[0]]: p.weaponManager.ammo_left[this.loadOut[0]] ?? 0
                                 };
                             }
-                            if (localPlayer?.weapon) {
-                                sm.currentState.engine.player.weaponManager.switch_weapon(localPlayer.weapon);
-                            } else {
-                                sm.currentState.engine.player.weaponManager.switch_weapon(this.loadOut[0]);
-                            }
+                            p.weaponManager.switch_weapon(localPlayer?.weapon || this.loadOut[0]);
                         }
                     }, 100);
                     break;
@@ -126,6 +142,8 @@ export default class NetworkManger {
 
         // 2. Sync Timers & HUD
         if (data.timer !== undefined) {
+            this.matchTimer = data.timer; // Store for HUD
+
             if (sm.currentState instanceof LoadoutSelectionState) {
                 sm.currentState.countdown = data.timer;
                 sm.currentState.updateHUDText(
@@ -252,6 +270,17 @@ export default class NetworkManger {
             //     y: vel.y,
             //     z: vel.z
             // }
+        }));
+    }
+
+    //test function for kicking player from console engine.netManger.kickPlayer('target-id-here')
+    kickPlayer(targetId, reason = "Admin kicked you") {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+        socket.send(JSON.stringify({
+            type: 'CMD_KICK',
+            targetId: targetId,
+            reason: reason
         }));
     }
 }
