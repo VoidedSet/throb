@@ -166,6 +166,10 @@ export default class NetworkManger {
         updatePlayerList([...this.currentRoomPlayerIDs], this.localId);
     }
 
+    updatePlayerListUI() {
+        updatePlayerList([...this.currentRoomPlayerIDs], this.localId);
+    }
+
     handleStateUpdate(playersData) {
         const incomingIds = new Set(Object.keys(playersData));
 
@@ -187,7 +191,7 @@ export default class NetworkManger {
         }
 
         for (const id in playersData) {
-            if (id === this.localId) continue; // Ignore own server pos
+            if (id === this.localId) continue; // ignore self
 
             const pData = playersData[id];
             const playerObj = this.remotePlayers[id];
@@ -201,8 +205,35 @@ export default class NetworkManger {
         }
     }
 
+    interpolatePlayers(deltaTime) {
+        // for (const id of this.currentRoomPlayerIDs) {
+        //     if (id === this.localId) continue;
+
+        //     const playerObj = this.remotePlayers[id];
+        //     if (playerObj && playerObj.userData.targetPos) {
+        //         // Lerp pos
+        //         playerObj.position.lerp(playerObj.userData.targetPos, 15 * deltaTime);
+
+        //         // Lerp rot safely
+        //         const head = playerObj.getObjectByName('head');
+        //         if (head && playerObj.userData.targetRot) {
+        //             head.rotation.x += (playerObj.userData.targetRot.x - head.rotation.x) * 15 * deltaTime;
+        //             head.rotation.y += (playerObj.userData.targetRot.y - head.rotation.y) * 15 * deltaTime;
+        //             head.rotation.z += (playerObj.userData.targetRot.z - head.rotation.z) * 15 * deltaTime;
+        //         }
+        //     }
+        // }
+    }
+
     updatePlayerState() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+        let vel = { x: 0, y: 0, z: 0 };
+
+        if (this.sm.currentState?.engine?.player) {
+            const pVel = this.sm.currentState.engine.player.physics.getVelocity();
+            vel = { x: pVel.x, y: pVel.y, z: pVel.z };
+        }
 
         socket.send(JSON.stringify({
             type: 'INPUT',
@@ -215,7 +246,12 @@ export default class NetworkManger {
                 x: this.camera.rotation.x,
                 y: this.camera.rotation.y,
                 z: this.camera.rotation.z
-            }
+            },
+            // vel: {
+            //     x: vel.x,
+            //     y: vel.y,
+            //     z: vel.z
+            // }
         }));
     }
 }

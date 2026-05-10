@@ -61,7 +61,7 @@ export class WaitingState extends GameState {
     updateHUDTexture() {
         const ctx = this.ctx;
         const canvas = this.canvas;
-        const playerCount = this.engine.netManger.currentRoomPlayerIDs.size;
+        const playerCount = this.engine.netManager.currentRoomPlayerIDs.size;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -108,7 +108,7 @@ export class WaitingState extends GameState {
     }
 
     update(deltaTime) {
-        const currentCount = this.engine.netManger.currentRoomPlayerIDs.size;
+        const currentCount = this.engine.netManager.currentRoomPlayerIDs.size;
         if (currentCount !== this.prevPlayers) {
             this.prevPlayers = currentCount;
             this.updateHUDTexture();

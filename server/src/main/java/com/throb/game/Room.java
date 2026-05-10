@@ -32,7 +32,7 @@ public class Room {
     }
 
     public void start() {
-        System.out.println("Room " + roomId + " started ticking at 20 tps");
+        System.out.println("Room " + roomId + " started ticking at 60 tps");
         if (isRunning.compareAndSet(false, true)) {
             gameLoop.scheduleAtFixedRate(this::tick, 0, 16, TimeUnit.MILLISECONDS);
         }
@@ -62,6 +62,8 @@ public class Room {
             } else if ("INPUT".equals(type) && state == RoomState.GAMEPLAY) {
                 JsonNode pos = node.get("pos");
                 JsonNode rot = node.get("rot");
+                // JsonNode vel = node.get("vel");
+
                 if (pos != null) {
                     if (pos.has("x"))
                         p.x = pos.get("x").asDouble();
@@ -78,6 +80,15 @@ public class Room {
                     if (rot.has("z"))
                         p.rotZ = rot.get("z").asDouble();
                 }
+                // future implementation
+                // if (vel != null) {
+                // if (vel.has("x"))
+                // p.vx = vel.get("x").asDouble();
+                // if (vel.has("y"))
+                // p.vy = vel.get("y").asDouble();
+                // if (vel.has("z"))
+                // p.vz = vel.get("z").asDouble();
+                // }
             } else if ("SHOOT".equals(type) && state == RoomState.GAMEPLAY) {
                 String targetId = node.has("targetId") ? node.get("targetId").asString() : "";
                 String weaponUsed = node.has("weapon") ? node.get("weapon").asString() : "";
@@ -178,7 +189,7 @@ public class Room {
             case WAITING:
                 if (players.size() >= playerLimit) {
                     state = RoomState.LOADOUT_SELECTION;
-                    stateEndTime = now + 20000; // 20s
+                    stateEndTime = now + 5000; // 20s
                     System.out.println("Room " + roomId + " -> Loadout");
                 }
                 break;
@@ -198,7 +209,6 @@ public class Room {
                 }
                 if (players.size() == 1) {
                     state = RoomState.HEART_EXPLOADED;
-                    System.out.println("TEST");
                 }
                 break;
 
@@ -244,14 +254,22 @@ public class Room {
                 ObjectNode playersNode = root.putObject("players");
                 for (Player p : players.values()) {
                     ObjectNode pNode = playersNode.putObject(p.id);
+
                     ObjectNode pos = pNode.putObject("pos");
                     pos.put("x", p.x);
                     pos.put("y", p.y);
                     pos.put("z", p.z);
+
                     ObjectNode rot = pNode.putObject("rot");
                     rot.put("x", p.rotX);
                     rot.put("y", p.rotY);
                     rot.put("z", p.rotZ);
+
+                    // ObjectNode vel = pNode.putObject("vel");
+                    // vel.put("x", p.vx);
+                    // vel.put("y", p.vy);
+                    // vel.put("z", p.vz);
+
                     pNode.put("hp", p.health);
                     if (p.loadout != null && p.loadout.length == 2) {
                         pNode.put("w1", p.loadout[0]);

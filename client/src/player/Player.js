@@ -56,6 +56,10 @@ export default class Player {
             this.hand.scale.set(0.09, 0.09, 0.09);
             this.controls.object.add(this.hand);
             this.hand_anim = new AnimPlayer(this.hand, gltf.animations);
+
+            if (this.weaponManager && this.weaponManager.current_weapon_stats) {
+                this.hand_anim.play(this.weaponManager.current_weapon_stats.anim);
+            }
         });
 
         loader.load('src/art/models/hand2.glb', (gltf) => {

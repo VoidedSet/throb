@@ -210,7 +210,7 @@ export class LoadoutSelectionState extends GameState {
         if (!this.loadout) this.loadout = ['fist', 'pistol'];
 
         // Save the loadout so GameplayState/NetworkManager can use it
-        this.engine.netManger.loadOut = this.loadout;
+        this.engine.netManager.loadOut = this.loadout;
 
         // Let the backend know what loadout we selected
         socket.send(JSON.stringify({

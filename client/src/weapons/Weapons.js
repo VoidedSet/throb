@@ -157,6 +157,10 @@ export default class WeaponManager {
             this.ammo_left[new_weapon] = weapons[new_weapon].ammo;
         }
 
+        if (this.player.hand_anim) {
+            this.player.hand_anim.play(this.current_weapon_stats.anim);
+        }
+
         this.player.hand_anim.play(this.current_weapon_stats.anim);
 
         const ammoHUD = document.getElementById('player-ammo-display')

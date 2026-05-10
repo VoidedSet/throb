@@ -57,7 +57,7 @@ export default class Engine {
 
 
         //   Multiplayer Mangement   //
-        this.netManger = null;
+        this.netManager = null;
         this.remotePlayers = {};
         this.roomCode = roomCode;
 
@@ -65,7 +65,7 @@ export default class Engine {
             if (roomCode == 3 || roomCode == 4 || roomCode == 5 || roomCode == 6)
                 this.playerLimit = roomCode;
             else this.playerLimit = 2;
-            this.netManger = new NetworkManger(this, this.roomCode, this.playerLimit);
+            this.netManager = new NetworkManger(this, this.roomCode, this.playerLimit);
         }
 
         // if (this.currentGameState === this.gameState.WAITING)
@@ -86,7 +86,7 @@ export default class Engine {
         requestAnimationFrame(this.animate);
         this.enemies = [];
 
-        if (!this.netManger)
+        if (!this.netManager)
             for (var i = 0; i < 10; i++) {
                 const dummy = new EnemyDummy(new THREE.Vector3(-i, 1, 2 * i), this.scene, this.player, this.world.worldOctree);
                 this.enemies.push(dummy);
@@ -113,8 +113,10 @@ export default class Engine {
         this.enemies.forEach(enemy => enemy.update(delta))
         this.world?.update(delta);
 
-        if (this.netManger)
-            this.netManger.updatePlayerState();
+        if (this.netManager) {
+            this.netManager.updatePlayerState();
+            this.netManager.interpolatePlayers(delta);
+        }
 
         requestAnimationFrame(this.animate);
     }
