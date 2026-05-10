@@ -15,7 +15,6 @@ export default class AudioManager {
     play(name, { loop = false, volume = 1.0, rate = 1.0, pan = 0.0 } = {}) {
         const entry = this.buffers.get(name);
         if (!entry) {
-            console.warn(`Audio "${name}" not found`);
             return;
         }
 

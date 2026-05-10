@@ -10,11 +10,19 @@ public class Player {
     public double rotX = 0, rotY = 0, rotZ = 0;
 
     public int health = 100, kills = 0, deaths = 0;
-    public String[] loadout = new String[]{"fist", "pistol"};
+    public String[] loadout = new String[] { "fist", "pistol" };
+    public int activeSlot = 0;
+    public int ammo = 0;
 
     public Player(String id, WebSocketSession session) {
         this.id = id;
         this.session = session;
+    }
+
+    public void setLoadout(String[] loadout) {
+        this.loadout = loadout;
+        this.activeSlot = 0;
+        this.ammo = 0;
     }
 
     public Vector3 getPosition() {

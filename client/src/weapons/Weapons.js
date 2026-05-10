@@ -144,6 +144,15 @@ export default class WeaponManager {
         this.current_weapon = new_weapon;
         this.current_weapon_stats = weapons[new_weapon];
 
+        const slot = this.weapon_inventory.indexOf(new_weapon);
+        if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'WEAPON_SWITCH',
+                weapon: new_weapon,
+                slot
+            }));
+        }
+
         if (!(new_weapon in this.ammo_left)) {
             this.ammo_left[new_weapon] = weapons[new_weapon].ammo;
         }
@@ -151,7 +160,7 @@ export default class WeaponManager {
         this.player.hand_anim.play(this.current_weapon_stats.anim);
 
         const ammoHUD = document.getElementById('player-ammo-display')
-        ammoHUD.innerHTML = `Ammo: ${this.ammo_left[this.current_weapon]}`
+        if (ammoHUD) ammoHUD.innerHTML = `Ammo: ${this.ammo_left[this.current_weapon]}`
     }
 
     cycle_weapon(direction) {
@@ -225,7 +234,7 @@ export default class WeaponManager {
             this.ammo_left[this.current_weapon] -= ammoUsed;
 
             const ammoHUD = document.getElementById('player-ammo-display')
-            ammoHUD.innerHTML = `Ammo: ${this.ammo_left[this.current_weapon]}`
+            if (ammoHUD) ammoHUD.innerHTML = `Ammo: ${this.ammo_left[this.current_weapon]}`
             // socket.on('playerAmmoUpdate', ({ id, weapon, ammo }) => {
             //     console.log(ammo)
             // })
@@ -274,7 +283,7 @@ export default class WeaponManager {
             this.reloading = false;
 
             const ammoHUD = document.getElementById('player-ammo-display')
-            ammoHUD.innerHTML = `Ammo: ${this.ammo_left[this.current_weapon]}`
+            if (ammoHUD) ammoHUD.innerHTML = `Ammo: ${this.ammo_left[this.current_weapon]}`
         }, this.current_weapon_stats.reloadTime * 1000);
     }
 
@@ -308,31 +317,36 @@ export default class WeaponManager {
             for (let i = 0; i < hits.length; i++) {
                 const hit = hits[i];
 
-                if (hit.object.name != "particle" && hit.object.name != 'hud') {
+                if (hit.object && hit.object.name != "particle" && hit.object.name != 'hud') {
                     target = hit;
                     break;
                 }
             }
 
+            if (!target) return;
+
             const normal = new THREE.Vector3();
-            target.face?.normal?.clone()?.applyMatrix3(
-                new THREE.Matrix3().getNormalMatrix(target.object.matrixWorld)
-            )?.normalize();
+            if (target.face && target.face.normal) {
+                normal.copy(target.face.normal)
+                    .applyMatrix3(new THREE.Matrix3().getNormalMatrix(target.object.matrixWorld))
+                    .normalize();
+            }
+
             this.weapon_particles.spawnImpactParticles(target.point, normal, this.current_weapon_stats.damage);
 
-
             const fingerWorldPos = new THREE.Vector3();
-            this.player.hand.getWorldPosition(fingerWorldPos);
+            if (this.player.hand && this.player.hand.getWorldPosition) {
+                this.player.hand.getWorldPosition(fingerWorldPos);
+            }
             fingerWorldPos.add(direction.clone().multiplyScalar(1.6));
 
             this.flashMuzzle(fingerWorldPos, direction); // world space
 
-
-            if (target.object.userData.enemy) {
+            if (target.object && target.object.userData && target.object.userData.enemy) {
                 // Send the exact target, raycast direction, and weapon used to the server
                 socket.send(JSON.stringify({
                     type: 'SHOOT',
-                    targetId: target.object.userData.enemy, 
+                    targetId: target.object.userData.enemy,
                     weapon: this.current_weapon,
                     dir: { x: direction.x, y: direction.y, z: direction.z }
                 }));

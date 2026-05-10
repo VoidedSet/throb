@@ -34,7 +34,7 @@ public class Room {
     public void start() {
         System.out.println("Room " + roomId + " started ticking at 20 tps");
         if (isRunning.compareAndSet(false, true)) {
-            gameLoop.scheduleAtFixedRate(this::tick, 0, 50, TimeUnit.MILLISECONDS);
+            gameLoop.scheduleAtFixedRate(this::tick, 0, 16, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -47,14 +47,19 @@ public class Room {
             if (p == null)
                 return;
 
-            if ("LOADOUT".equals(type) && state == RoomState.LOADOUT_SELECTION) {
+            if ("LOADOUT".equals(type)) {
                 JsonNode loadoutNode = node.get("loadout");
                 if (loadoutNode != null && loadoutNode.isArray()) {
-                    p.loadout = new String[]{loadoutNode.get(0).asText(), loadoutNode.get(1).asText()};
+                    p.setLoadout(new String[] { loadoutNode.get(0).asString(), loadoutNode.get(1).asString() });
+                    p.ammo = getWeaponAmmo(p.loadout[1]);
                     System.out.println("✅ " + p.id + " selected loadout: " + p.loadout[0] + ", " + p.loadout[1]);
                 }
+            } else if ("WEAPON_SWITCH".equals(type)) {
+                int slot = node.has("slot") ? node.get("slot").asInt(0) : 0;
+                if (p.loadout != null && slot >= 0 && slot < p.loadout.length) {
+                    p.activeSlot = slot;
+                }
             } else if ("INPUT".equals(type) && state == RoomState.GAMEPLAY) {
-                // ... (Keep your existing movement/rotation logic here) ...
                 JsonNode pos = node.get("pos");
                 JsonNode rot = node.get("rot");
                 if (pos != null) {
@@ -78,18 +83,26 @@ public class Room {
                 String weaponUsed = node.has("weapon") ? node.get("weapon").asString() : "";
                 Player target = players.get(targetId);
 
-                // Anti-Cheat Sanity Checks
-                boolean hasWeapon = false;
-                if (p.loadout != null) {
-                    for (String w : p.loadout) {
-                        if (w.equalsIgnoreCase(weaponUsed)) {
-                            hasWeapon = true; break;
-                        }
-                    }
+                // Server-authoritative weapon -> derive from activeSlot
+                String authoritativeWeapon = "";
+                if (p.loadout != null && p.loadout.length > 0) {
+                    int idx = Math.max(0, Math.min(p.activeSlot, p.loadout.length - 1));
+                    authoritativeWeapon = p.loadout[idx];
                 }
-                
-                if (!hasWeapon) {
-                    System.out.println("❌ " + p.id + " tried to shoot with unequipped weapon: " + weaponUsed);
+
+                if (authoritativeWeapon == null || authoritativeWeapon.isEmpty()) {
+                    System.out.println("[F] " + p.id + " has no weapon in active slot");
+                    return;
+                }
+
+                if (!weaponUsed.equalsIgnoreCase(authoritativeWeapon)) {
+                    System.out.println("[F] " + p.id + " claimed " + weaponUsed + " but active slot is "
+                            + authoritativeWeapon + " - overriding");
+                    weaponUsed = authoritativeWeapon;
+                }
+
+                if (p.ammo <= 0 && !isMeleeWeapon(weaponUsed)) {
+                    System.out.println("[F] " + p.id + " tried to shoot with empty weapon: " + weaponUsed);
                     return;
                 }
 
@@ -116,9 +129,13 @@ public class Room {
                             if (dot > 0.85) {
 
                                 // HIT CONFIRMED! Server takes action.
-                                System.out.println("[T] " + p.id + " shot and hit " + target.id + "!");
-                                target.health -= 25; // Hardcoded damage for now
-                                bloodGauge += 25; // Fill the room blood gauge
+                                // System.out.println("[T] " + p.id + " shot and hit " + target.id + "!");
+                                int damage = getWeaponDamage(weaponUsed);
+                                target.health -= damage;
+                                bloodGauge += damage; // Fill the room blood gauge
+                                if (!isMeleeWeapon(weaponUsed)) {
+                                    p.ammo = Math.max(0, p.ammo - 1);
+                                }
 
                                 ObjectNode dmgPacket = mapper.createObjectNode();
 
@@ -135,16 +152,17 @@ public class Room {
                                     dmgPacket.put("type", "DAMAGE");
                                     dmgPacket.put("targetId", target.id);
                                     dmgPacket.put("hp", target.health);
+                                    dmgPacket.put("weapon", weaponUsed);
                                 }
 
                                 // Tell everyone what happened instantly (don't wait for tick)
                                 broadcast(dmgPacket.toString());
                             } else {
-                                System.out.println("❌ " + p.id + " shot, but missed angle check!");
+                                System.out.println("[F] " + p.id + " shot, but missed angle check!");
                             }
                         }
                     } else {
-                        System.out.println("❌ " + p.id + " shot, but missed distance check!");
+                        System.out.println("[F] " + p.id + " shot, but missed distance check!");
                     }
                 }
             }
@@ -160,7 +178,7 @@ public class Room {
             case WAITING:
                 if (players.size() >= playerLimit) {
                     state = RoomState.LOADOUT_SELECTION;
-                    stateEndTime = now + 10000; // will need to test how long to keep for now 10s
+                    stateEndTime = now + 20000; // 20s
                     System.out.println("Room " + roomId + " -> Loadout");
                 }
                 break;
@@ -239,6 +257,7 @@ public class Room {
                         pNode.put("w1", p.loadout[0]);
                         pNode.put("w2", p.loadout[1]);
                     }
+                    pNode.put("ammo", p.ammo);
                 }
             }
 
@@ -258,5 +277,31 @@ public class Room {
             } catch (Exception ignored) {
             }
         });
+    }
+
+    private boolean isMeleeWeapon(String weapon) {
+        return "fist".equalsIgnoreCase(weapon) || "slap".equalsIgnoreCase(weapon);
+    }
+
+    private int getWeaponAmmo(String weapon) {
+        return switch (weapon.toLowerCase()) {
+            case "pistol" -> 12;
+            case "shotgun" -> 8;
+            case "smg" -> 25;
+            case "sniper" -> 4;
+            default -> 0;
+        };
+    }
+
+    private int getWeaponDamage(String weapon) {
+        return switch (weapon.toLowerCase()) {
+            case "fist" -> 5;
+            case "slap" -> 10;
+            case "pistol" -> 20;
+            case "shotgun" -> 70;
+            case "smg" -> 10;
+            case "sniper" -> 80;
+            default -> 0;
+        };
     }
 }

@@ -1,4 +1,5 @@
 import { MeshBasicMaterial, Vector3 } from "three";
+import { weapons } from "../../weapons/Weapons";
 import { hideDeathScreen, removeRemotePlayers, respawnRemotePlayer, showDamage, showDeathScreen, spawnRemotePlayers, updatePlayerList } from "./multiplayer_dependancy";
 import { GameplayState } from "../GameStates/GameplayState";
 import { LoadoutSelectionState } from "../GameStates/LoadoutSelectionState";
@@ -82,12 +83,33 @@ export default class NetworkManger {
                 case 2: // GAMEPLAY
                     console.log('[Room] Match Start!');
                     sm.setState(GameplayState);
-                    if (!this.loadOut) this.loadOut = ['fist', 'pistol'];
+
+                    // Show HTML HUD elements
+                    const hud = document.getElementById('player-ui');
+                    if (hud) hud.style.display = 'block';
+
+                    const localPlayer = data.players?.[this.localId];
+                    if (localPlayer) {
+                        this.loadOut = [localPlayer.w1 || 'fist', localPlayer.w2 || 'pistol'];
+                    } else if (!this.loadOut) {
+                        this.loadOut = ['fist', 'pistol'];
+                    }
 
                     // Give weapons after a tiny delay so player object finishes loading
                     setTimeout(() => {
                         if (sm.currentState.engine.player) {
                             sm.currentState.engine.player.weaponManager.weapon_inventory = this.loadOut;
+                            if (localPlayer && typeof localPlayer.ammo === 'number') {
+                                sm.currentState.engine.player.weaponManager.ammo_left = {
+                                    [this.loadOut[1]]: localPlayer.ammo,
+                                    [this.loadOut[0]]: sm.currentState.engine.player.weaponManager.ammo_left[this.loadOut[0]] ?? 0
+                                };
+                            }
+                            if (localPlayer?.weapon) {
+                                sm.currentState.engine.player.weaponManager.switch_weapon(localPlayer.weapon);
+                            } else {
+                                sm.currentState.engine.player.weaponManager.switch_weapon(this.loadOut[0]);
+                            }
                         }
                     }, 100);
                     break;
@@ -120,6 +142,23 @@ export default class NetworkManger {
         // 3. Sync Players if in Gameplay
         if (data.state === 2 && data.players) {
             this.handleStateUpdate(data.players);
+            const localPlayer = data.players[this.localId];
+            if (localPlayer && sm.currentState?.engine?.player) {
+                const manager = sm.currentState.engine.player.weaponManager;
+                if (localPlayer.w1 && localPlayer.w2) {
+                    manager.weapon_inventory = [localPlayer.w1, localPlayer.w2];
+                }
+                if (typeof localPlayer.ammo === 'number') {
+                    manager.ammo_left = {
+                        [manager.weapon_inventory[1] || 'pistol']: localPlayer.ammo,
+                        [manager.weapon_inventory[0] || 'fist']: manager.ammo_left[manager.weapon_inventory[0] || 'fist'] ?? 0
+                    };
+                }
+                if (localPlayer.weapon && manager.current_weapon !== localPlayer.weapon) {
+                    manager.current_weapon = localPlayer.weapon;
+                    manager.current_weapon_stats = weapons[localPlayer.weapon];
+                }
+            }
         }
     }
 

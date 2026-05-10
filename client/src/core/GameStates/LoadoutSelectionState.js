@@ -20,7 +20,7 @@ export class LoadoutSelectionState extends GameState {
 
         this.gunName = 'Fist`er  ', this.gunType = 'melee', this.gunDamage = 5;
         this.gunNames = ['Fist', 'Pistol', 'SMG', 'Shotgun', 'Sniper'];
-        this.loadout = ['melee', 'ranged'];
+        this.loadout = ['fist', 'pistol'];
         this.timeoutHandles ??= [];
 
         this.engine.renderer.lerpBloomTo(0.05, 0.3);
@@ -208,14 +208,14 @@ export class LoadoutSelectionState extends GameState {
         this.engine.renderer.lerpBloomTo(0.05, 0.9);
 
         if (!this.loadout) this.loadout = ['fist', 'pistol'];
-        
+
         // Save the loadout so GameplayState/NetworkManager can use it
         this.engine.netManger.loadOut = this.loadout;
-        
+
         // Let the backend know what loadout we selected
-        socket.send(JSON.stringify({ 
-            type: 'LOADOUT', 
-            loadout: this.loadout 
+        socket.send(JSON.stringify({
+            type: 'LOADOUT',
+            loadout: this.loadout
         }));
     }
 

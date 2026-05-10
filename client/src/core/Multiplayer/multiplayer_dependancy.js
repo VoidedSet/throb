@@ -29,7 +29,16 @@ export function spawnRemotePlayers(position, scene, remotePlayers, id) {
         remotePlayers[id] = body;
     },
         (error) => {
-            console.error(`[GLTF Load Error] Failed to load model for player ID: ${id}`, error);
+            console.warn(`[GLTF Load Warn] Using fallback remote player for ID: ${id}`);
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 1.3, 0.5),
+                new THREE.MeshBasicMaterial({ color: 0x0 })
+            );
+            body.position.copy(position);
+            body.position.y -= 0.7;
+            body.userData.enemy = id;
+            scene.add(body);
+            remotePlayers[id] = body;
         });
 }
 
@@ -75,7 +84,8 @@ export function showDamage(health) {
         damage.style.display = 'flex';
 
     setTimeout(() => {
-        damage.style.display = 'none';
+        if (damage)
+            damage.style.display = 'none';
     }, 40);
 
     if (healthHUD)

@@ -19,6 +19,9 @@ export class GameplayState extends GameState {
         this.systemMsg = { msg: '', timer: 0 };
         this.weaponName = { name: '', timer: 0, ammo: 0, maxAmmo: 0 };
 
+        const hud = document.getElementById('player-ui');
+        if (hud) hud.style.display = 'block';
+
         this.initHUDPlane();
 
         this.showSystemMessage('U suck.')
@@ -69,7 +72,7 @@ export class GameplayState extends GameState {
 
     update(deltaTime) {
         this.engine.player?.update(deltaTime);
-        this.engine.enemies.forEach(e => e.update(deltaTime));
+        this.engine.enemies?.forEach(e => e.update(deltaTime));
 
         if (this.systemMsg.timer > 0)
             this.systemMsg.timer -= deltaTime;
@@ -78,6 +81,10 @@ export class GameplayState extends GameState {
             this.weaponName.timer -= deltaTime;
 
         const eye = this.eye;
+        if (!eye) {
+            this.updateHUDTexture();
+            return;
+        }
         eye.timeSinceLastGlance += deltaTime;
 
         if (eye.timeSinceLastGlance > 3 + Math.random() * 3) {
@@ -150,57 +157,57 @@ export class GameplayState extends GameState {
 
         //the bloom guage :0
         {
-            // const gaugeWidth = 400;
-            // const gaugeHeight = 20;
-            // const gaugeX = (canvas.width - gaugeWidth) / 2;
-            // const gaugeY = 30;
+            const gaugeWidth = 400;
+            const gaugeHeight = 20;
+            const gaugeX = (canvas.width - gaugeWidth) / 2;
+            const gaugeY = 30;
 
-            // const bloodRatio = .7 // from server (0 to 1)
+            const bloodRatio = .7 // from server (0 to 1)
 
-            // const radius = gaugeHeight / 2;
+            const radius = gaugeHeight / 2;
 
-            // const fillGradient = ctx.createLinearGradient(gaugeX, 0, gaugeX + gaugeWidth, 0);
-            // fillGradient.addColorStop(0.0, '#FF0000');
-            // fillGradient.addColorStop(1.0, '#DDFFFF');
+            const fillGradient = ctx.createLinearGradient(gaugeX, 0, gaugeX + gaugeWidth, 0);
+            fillGradient.addColorStop(0.0, '#FF0000');
+            fillGradient.addColorStop(1.0, '#DDFFFF');
 
-            // ctx.save();
-            // ctx.beginPath();
-            // ctx.moveTo(gaugeX + radius, gaugeY);
-            // ctx.lineTo(gaugeX + gaugeWidth - radius, gaugeY);
-            // ctx.arcTo(gaugeX + gaugeWidth, gaugeY, gaugeX + gaugeWidth, gaugeY + radius, radius);
-            // ctx.lineTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight - radius);
-            // ctx.arcTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight, gaugeX + gaugeWidth - radius, gaugeY + gaugeHeight, radius);
-            // ctx.lineTo(gaugeX + radius, gaugeY + gaugeHeight);
-            // ctx.arcTo(gaugeX, gaugeY + gaugeHeight, gaugeX, gaugeY + gaugeHeight - radius, radius);
-            // ctx.lineTo(gaugeX, gaugeY + radius);
-            // ctx.arcTo(gaugeX, gaugeY, gaugeX + radius, gaugeY, radius);
-            // ctx.closePath();
-            // ctx.clip();
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(gaugeX + radius, gaugeY);
+            ctx.lineTo(gaugeX + gaugeWidth - radius, gaugeY);
+            ctx.arcTo(gaugeX + gaugeWidth, gaugeY, gaugeX + gaugeWidth, gaugeY + radius, radius);
+            ctx.lineTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight - radius);
+            ctx.arcTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight, gaugeX + gaugeWidth - radius, gaugeY + gaugeHeight, radius);
+            ctx.lineTo(gaugeX + radius, gaugeY + gaugeHeight);
+            ctx.arcTo(gaugeX, gaugeY + gaugeHeight, gaugeX, gaugeY + gaugeHeight - radius, radius);
+            ctx.lineTo(gaugeX, gaugeY + radius);
+            ctx.arcTo(gaugeX, gaugeY, gaugeX + radius, gaugeY, radius);
+            ctx.closePath();
+            ctx.clip();
 
-            // ctx.fillStyle = fillGradient;
-            // ctx.fillRect(gaugeX, gaugeY, gaugeWidth * bloodRatio, gaugeHeight);
-            // ctx.restore();
+            ctx.fillStyle = fillGradient;
+            ctx.fillRect(gaugeX, gaugeY, gaugeWidth * bloodRatio, gaugeHeight);
+            ctx.restore();
 
-            // ctx.lineWidth = 1;
-            // ctx.strokeStyle = '#010101';
-            // ctx.beginPath();
-            // ctx.moveTo(gaugeX + radius, gaugeY);
-            // ctx.lineTo(gaugeX + gaugeWidth - radius, gaugeY);
-            // ctx.arcTo(gaugeX + gaugeWidth, gaugeY, gaugeX + gaugeWidth, gaugeY + radius, radius);
-            // ctx.lineTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight - radius);
-            // ctx.arcTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight, gaugeX + gaugeWidth - radius, gaugeY + gaugeHeight, radius);
-            // ctx.lineTo(gaugeX + radius, gaugeY + gaugeHeight);
-            // ctx.arcTo(gaugeX, gaugeY + gaugeHeight, gaugeX, gaugeY + gaugeHeight - radius, radius);
-            // ctx.lineTo(gaugeX, gaugeY + radius);
-            // ctx.arcTo(gaugeX, gaugeY, gaugeX + radius, gaugeY, radius);
-            // ctx.closePath();
-            // ctx.stroke();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#010101';
+            ctx.beginPath();
+            ctx.moveTo(gaugeX + radius, gaugeY);
+            ctx.lineTo(gaugeX + gaugeWidth - radius, gaugeY);
+            ctx.arcTo(gaugeX + gaugeWidth, gaugeY, gaugeX + gaugeWidth, gaugeY + radius, radius);
+            ctx.lineTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight - radius);
+            ctx.arcTo(gaugeX + gaugeWidth, gaugeY + gaugeHeight, gaugeX + gaugeWidth - radius, gaugeY + gaugeHeight, radius);
+            ctx.lineTo(gaugeX + radius, gaugeY + gaugeHeight);
+            ctx.arcTo(gaugeX, gaugeY + gaugeHeight, gaugeX, gaugeY + gaugeHeight - radius, radius);
+            ctx.lineTo(gaugeX, gaugeY + radius);
+            ctx.arcTo(gaugeX, gaugeY, gaugeX + radius, gaugeY, radius);
+            ctx.closePath();
+            ctx.stroke();
 
-            // ctx.font = '28px Miskan';
-            // ctx.fillStyle = '#ff5566'
-            // ctx.textAlign = 'center';
-            // ctx.textBaseline = 'bottom';
-            // ctx.fillText('final blossom', canvas.width / 2, gaugeY - 4);
+            ctx.font = '28px Miskan';
+            ctx.fillStyle = '#ff5566'
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('final blossom', canvas.width / 2, gaugeY - 4);
         }
 
         //stats ui
