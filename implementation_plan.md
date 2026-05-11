@@ -89,11 +89,11 @@ Depends on: Phase 2, 3 | Blocks: None (parallel-able with Phase 5)
 Implement full canvas-based HUD (no DOM):
 
 HUD Layout:
-- [PENDING] Bottom-left: Health bar + number, Ammo counter, Current weapon
-- [PENDING] Bottom-center: Blood meter (red bar showing remaining)
-- [PENDING] Center: Crosshair (white dot)
-- [PENDING] Top-left: Score, Kills, Deaths
-- [PENDING] Top-center: Match timer (MM:SS)
+- [DONE] Bottom-Righ and center: Health bar + number, Ammo counter, Current weapon
+- [DONE] Bottom-center: Blood meter (red bar showing remaining)
+- [DONE] Center: Crosshair (an eye)
+- [DONE] Bottom-left: Score, Kills, Deaths (simple scoreboard showing top3)
+- [DONE] Top-center: Match timer (MM:SS)
 - [PENDING] Top-right: Player count, Ping indicator
 - [PENDING] Kill feed: Last 5 kills, auto-fade after 3s (format: "KillerName killed VictimName [weapon]")
 - [PENDING] Minimap: 200px view in corner, players as dots (green=you, red=enemy), map bounds
