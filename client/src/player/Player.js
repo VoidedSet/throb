@@ -28,7 +28,7 @@ export default class Player {
         this.beatInterval = 1500; // ms (full cycle)
         this.heartbeatSource = null;
         this.breathRate = 0.3;
-        this.health = 100;
+        this.health = 300;
 
         this.cameraEffects = new CameraEffects(this.camera);
         this.physics = new PlayerPhysics(this.collider, engine.world.worldOctree, this.camera, this.keyStates, this.cameraEffects);

@@ -25,7 +25,7 @@ public class Room {
     private int playerLimit = 2;
     private long stateEndTime = 0;
 
-    private int bloodGauge = 0, maxBloodGauge = 400;
+    // private int bloodGauge = 0, maxBloodGauge = 400;
 
     private final Vector3[] spawns = {
             new Vector3(-31.71, -8.56, -35.26), new Vector3(24.60, -7.10, -13.38),
@@ -70,6 +70,11 @@ public class Room {
                 JsonNode rot = node.get("rot");
                 // JsonNode vel = node.get("vel");
 
+                if (node.has("isMoving"))
+                    p.isMoving = node.get("isMoving").asBoolean();
+                if (node.has("isSprinting"))
+                    p.isSprinting = node.get("isSprinting").asBoolean();
+
                 if (pos != null) {
                     if (pos.has("x"))
                         p.x = pos.get("x").asDouble();
@@ -95,6 +100,11 @@ public class Room {
                 // if (vel.has("z"))
                 // p.vz = vel.get("z").asDouble();
                 // }
+            } else if ("RELOAD".equals(type) && state == RoomState.GAMEPLAY) {
+                if (p.loadout != null && p.loadout.length > 0) {
+                    int idx = Math.max(0, Math.min(p.activeSlot, p.loadout.length - 1));
+                    p.ammo = getWeaponAmmo(p.loadout[idx]);
+                }
             } else if ("SHOOT".equals(type) && state == RoomState.GAMEPLAY) {
                 String targetId = node.has("targetId") ? node.get("targetId").asString() : "";
                 String weaponUsed = node.has("weapon") ? node.get("weapon").asString() : "";
@@ -123,6 +133,11 @@ public class Room {
                     return;
                 }
 
+                if (!isMeleeWeapon(weaponUsed)) {
+                    int cost = weaponUsed.equalsIgnoreCase("shotgun") ? 2 : 1;
+                    p.ammo = Math.max(0, p.ammo - cost);
+                }
+
                 if (target != null && target.health > 0) {
 
                     // 1. Distance Check (Is target within 100 units?)
@@ -148,11 +163,12 @@ public class Room {
                                 // HIT CONFIRMED! Server takes action.
                                 // System.out.println("[T] " + p.id + " shot and hit " + target.id + "!");
                                 int damage = getWeaponDamage(weaponUsed);
-                                target.health -= damage;
-                                bloodGauge += damage; // Fill the room blood gauge
-                                if (!isMeleeWeapon(weaponUsed)) {
-                                    p.ammo = Math.max(0, p.ammo - 1);
-                                }
+                                int actualDamage = Math.min((int) Math.ceil(target.blood), damage);
+                                target.blood = Math.max(0.0, target.blood - actualDamage);
+                                target.health = (int) Math.max(0, Math.ceil(target.blood));
+
+                                target.damageReceivedFrom.put(p.id,
+                                        target.damageReceivedFrom.getOrDefault(p.id, 0) + actualDamage);
 
                                 ObjectNode dmgPacket = mapper.createObjectNode();
 
@@ -160,8 +176,14 @@ public class Room {
                                     p.kills++;
                                     target.deaths++;
 
+                                    int bloodToGive = (int) (target.damageReceivedFrom.getOrDefault(p.id, 0) * 0.75);
+                                    p.blood = Math.min(300.0, p.blood + bloodToGive);
+                                    p.health = (int) Math.round(p.blood);
+                                    target.damageReceivedFrom.clear();
+
                                     Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
-                                    target.health = 100;
+                                    target.health = 300;
+                                    target.blood = 300.0;
                                     target.x = sp.x;
                                     target.y = sp.y;
                                     target.z = sp.z;
@@ -222,20 +244,22 @@ public class Room {
                         p.x = sp.x;
                         p.y = sp.y;
                         p.z = sp.z;
-                        p.health = 100;
+                        p.health = 300;
+                        p.blood = 300.0;
                         i++;
                     }
                 }
                 break;
 
             case GAMEPLAY:
-                if (bloodGauge >= maxBloodGauge) {
-                    state = RoomState.HEART_EXPLOADED;
-                    stateEndTime = now + 10000; // 10s for now will have to actually test client side
-                    System.out.println("Room " + roomId + " -> Heart Exploaded");
-                }
-                if (players.size() == 1) {
-                    state = RoomState.HEART_EXPLOADED;
+                for (Player p : players.values()) {
+                    if (p.kills >= 2) {
+                        state = RoomState.MATCH_RESULTS;
+                        stateEndTime = now + 15000;
+                        System.out
+                                .println("Room " + roomId + " -> Match Ended because player " + p.id + " got 2 kills.");
+                        break;
+                    }
                 }
                 break;
 
@@ -267,12 +291,28 @@ public class Room {
 
         updateLogic();
 
+        if (state == RoomState.GAMEPLAY) {
+            for (Player p : players.values()) {
+                if (p.isSprinting)
+                    p.blood -= (5.0 / 60.0);
+                else if (p.isMoving)
+                    p.blood -= (1.0 / 60.0);
+
+                if (p.blood <= 0) {
+                    p.blood = 0;
+                    p.health = 0;
+                } else {
+                    p.health = (int) Math.ceil(p.blood);
+                }
+            }
+        }
+
         try {
             ObjectNode root = mapper.createObjectNode();
 
             root.put("type", "STATE_UPDATE");
             root.put("state", state.id);
-            root.put("blood", bloodGauge);
+            // root.put("blood", bloodGauge); // Global blood removed
 
             if (state == RoomState.LOADOUT_SELECTION || state == RoomState.MATCH_RESULTS
                     || state == RoomState.GAMEPLAY) {
@@ -301,6 +341,8 @@ public class Room {
                     // vel.put("z", p.vz);
 
                     pNode.put("hp", p.health);
+                    pNode.put("blood", p.blood);
+
                     if (p.loadout != null && p.loadout.length == 2) {
                         pNode.put("w1", p.loadout[0]);
                         pNode.put("w2", p.loadout[1]);

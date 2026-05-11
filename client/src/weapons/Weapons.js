@@ -282,6 +282,8 @@ export default class WeaponManager {
             pan: 0.1
         });
 
+        socket.send(JSON.stringify({ type: 'RELOAD' }));
+
         setTimeout(() => {
             this.ammo_left[this.current_weapon] = this.current_weapon_stats.ammo;
             this.reloading = false;
@@ -315,6 +317,8 @@ export default class WeaponManager {
         const raycaster = new THREE.Raycaster(this.player.camera.position, direction);
         const hits = raycaster.intersectObjects(this.scene.children, true);
 
+        let hitEnemyId = ""; // default empty
+
         if (hits.length > 0) {
             let target = null;
 
@@ -327,35 +331,37 @@ export default class WeaponManager {
                 }
             }
 
-            if (!target) return;
+            if (target) {
+                const normal = new THREE.Vector3();
+                if (target.face && target.face.normal) {
+                    normal.copy(target.face.normal)
+                        .applyMatrix3(new THREE.Matrix3().getNormalMatrix(target.object.matrixWorld))
+                        .normalize();
+                }
 
-            const normal = new THREE.Vector3();
-            if (target.face && target.face.normal) {
-                normal.copy(target.face.normal)
-                    .applyMatrix3(new THREE.Matrix3().getNormalMatrix(target.object.matrixWorld))
-                    .normalize();
-            }
+                this.weapon_particles.spawnImpactParticles(target.point, normal, this.current_weapon_stats.damage);
 
-            this.weapon_particles.spawnImpactParticles(target.point, normal, this.current_weapon_stats.damage);
+                const fingerWorldPos = new THREE.Vector3();
+                if (this.player.hand && this.player.hand.getWorldPosition) {
+                    this.player.hand.getWorldPosition(fingerWorldPos);
+                }
+                fingerWorldPos.add(direction.clone().multiplyScalar(1.6));
 
-            const fingerWorldPos = new THREE.Vector3();
-            if (this.player.hand && this.player.hand.getWorldPosition) {
-                this.player.hand.getWorldPosition(fingerWorldPos);
-            }
-            fingerWorldPos.add(direction.clone().multiplyScalar(1.6));
+                this.flashMuzzle(fingerWorldPos, direction); // world space
 
-            this.flashMuzzle(fingerWorldPos, direction); // world space
-
-            if (target.object && target.object.userData && target.object.userData.enemy) {
-                // Send the exact target, raycast direction, and weapon used to the server
-                socket.send(JSON.stringify({
-                    type: 'SHOOT',
-                    targetId: target.object.userData.enemy,
-                    weapon: this.current_weapon,
-                    dir: { x: direction.x, y: direction.y, z: direction.z }
-                }));
+                if (target.object && target.object.userData && target.object.userData.enemy) {
+                    hitEnemyId = target.object.userData.enemy;
+                }
             }
         }
+
+        // Send the exact target, raycast direction, and weapon used to the server
+        socket.send(JSON.stringify({
+            type: 'SHOOT',
+            targetId: hitEnemyId,
+            weapon: this.current_weapon,
+            dir: { x: direction.x, y: direction.y, z: direction.z }
+        }));
     }
 
     flashMuzzle(offset, direction) {

@@ -2,6 +2,9 @@ package com.throb.model;
 
 import org.springframework.web.socket.WebSocketSession;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Player {
     public String id;
     public WebSocketSession session;
@@ -15,6 +18,12 @@ public class Player {
     public String[] loadout = new String[] { "fist", "pistol" };
     public int activeSlot = 0;
     public int ammo = 0;
+
+    public double blood = 300.0;
+    public boolean isMoving = false;
+    public boolean isSprinting = false;
+
+    public Map<String, Integer> damageReceivedFrom = new HashMap<>();
 
     public Player(String id, WebSocketSession session) {
         this.id = id;

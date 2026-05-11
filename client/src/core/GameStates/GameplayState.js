@@ -18,6 +18,7 @@ export class GameplayState extends GameState {
 
         this.systemMsg = { msg: '', timer: 0 };
         this.weaponName = { name: '', timer: 0, ammo: 0, maxAmmo: 0 };
+        this.isDead = false;
 
         const hud = document.getElementById('player-ui');
         if (hud) hud.style.display = 'block';
@@ -56,6 +57,14 @@ export class GameplayState extends GameState {
     showSystemMessage(msg) {
         this.systemMsg.msg = msg;
         this.systemMsg.timer = 2.5;
+    }
+
+    showDeathMessage() {
+        this.isDead = true;
+    }
+
+    hideDeathMessage() {
+        this.isDead = false;
     }
 
     showWeaponName(weapon, type, ammo, maxAmmo) {
@@ -155,6 +164,20 @@ export class GameplayState extends GameState {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        const playerHealth = this.engine.player?.health ?? 300;
+
+        // low health effect (blur / dark edge)
+        if (playerHealth < 150) {
+            const alpha = Math.max(0, 1 - (playerHealth / 150)) * 0.7; // max 70% opacity
+            ctx.fillStyle = `rgba(50, 0, 0, ${alpha})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (this.engine.renderer && this.engine.renderer.bloomPass) {
+                this.engine.renderer.bloomPass.strength = Math.max(0.1, alpha * 2.0);
+            }
+        } else if (this.engine.renderer && this.engine.renderer.bloomPass) {
+            this.engine.renderer.bloomPass.strength = 0.1;
+        }
+
         //the bloom guage :0
         {
             const gaugeWidth = 400;
@@ -162,7 +185,7 @@ export class GameplayState extends GameState {
             const gaugeX = (canvas.width - gaugeWidth) / 2;
             const gaugeY = 30;
 
-            const bloodRatio = .7 // from server (0 to 1)
+            const bloodRatio = Math.max(0, playerHealth / 300);
 
             const radius = gaugeHeight / 2;
 
@@ -207,7 +230,7 @@ export class GameplayState extends GameState {
             ctx.fillStyle = '#ff5566'
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
-            ctx.fillText('final blossom', canvas.width / 2, gaugeY - 4);
+            ctx.fillText('health', canvas.width / 2, gaugeY - 4);
         }
 
         //stats ui
@@ -293,6 +316,16 @@ export class GameplayState extends GameState {
             ctx.font = '30px VT323';
             if (this.weaponName.ammo != -1)
                 ctx.fillText(`${this.weaponName.ammo}/${this.weaponName.maxAmmo}`, canvas.width - 20, canvas.height)
+        }
+
+        if (this.isDead) {
+            ctx.fillStyle = 'rgba(200, 0, 0, 0.4)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '80px Miskan';
+            ctx.fillStyle = '#ff0000';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('YOU DIED!', canvas.width / 2, canvas.height / 2);
         }
 
         this.texture.needsUpdate = true;

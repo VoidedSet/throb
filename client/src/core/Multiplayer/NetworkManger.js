@@ -46,16 +46,20 @@ export default class NetworkManger {
             else if (data.type === 'DAMAGE') {
                 console.log(`[Server] DAMAGE! Target ${data.targetId} now has ${data.hp} HP.`);
                 if (data.targetId === this.localId) {
-                    showDamage();
+                    showDamage(data.hp);
                 }
             }
             else if (data.type === 'KILL') {
                 console.log(`[Server] KILL! ${data.killerId} killed ${data.killedId}.`);
                 if (data.killedId === this.localId) {
-                    showDeathScreen();
+                    if (this.sm.currentState instanceof GameplayState) {
+                        this.sm.currentState.showDeathMessage();
+                    }
 
                     setTimeout(() => {
-                        hideDeathScreen();
+                        if (this.sm.currentState instanceof GameplayState) {
+                            this.sm.currentState.hideDeathMessage();
+                        }
                     }, 2500)
 
                     if (data.spawn && this.sm.currentState?.engine?.player) {
@@ -176,6 +180,9 @@ export default class NetworkManger {
                         [manager.weapon_inventory[0] || 'fist']: manager.ammo_left[manager.weapon_inventory[0] || 'fist'] ?? 0
                     };
                 }
+                if (typeof localPlayer.hp === 'number') {
+                    sm.currentState.engine.player.health = localPlayer.hp;
+                }
                 if (localPlayer.weapon && manager.current_weapon !== localPlayer.weapon) {
                     manager.current_weapon = localPlayer.weapon;
                     manager.current_weapon_stats = weapons[localPlayer.weapon];
@@ -221,7 +228,12 @@ export default class NetworkManger {
             if (playerObj && pData.pos) {
                 playerObj.position.set(pData.pos.x, pData.pos.y - 0.7, pData.pos.z);
                 if (pData.rot) {
-                    playerObj.getObjectByName('head').rotation.set(pData.rot.x, pData.rot.y, pData.rot.z);
+                    const head = playerObj.getObjectByName('head');
+                    if (head) {
+                        head.rotation.set(pData.rot.x, pData.rot.y, pData.rot.z);
+                    } else {
+                        playerObj.rotation.set(pData.rot.x, pData.rot.y, pData.rot.z);
+                    }
                 }
             }
         }
@@ -250,11 +262,13 @@ export default class NetworkManger {
     updatePlayerState() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
-        let vel = { x: 0, y: 0, z: 0 };
+        let isMoving = false;
+        let isSprinting = false;
 
         if (this.sm.currentState?.engine?.player) {
-            const pVel = this.sm.currentState.engine.player.physics.getVelocity();
-            vel = { x: pVel.x, y: pVel.y, z: pVel.z };
+            const keys = this.sm.currentState.engine.player.keyStates;
+            isMoving = !!(keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD']);
+            isSprinting = !!(isMoving && keys['ShiftLeft']);
         }
 
         socket.send(JSON.stringify({
@@ -269,6 +283,8 @@ export default class NetworkManger {
                 y: this.camera.rotation.y,
                 z: this.camera.rotation.z
             },
+            isMoving: isMoving,
+            isSprinting: isSprinting
             // vel: {
             //     x: vel.x,
             //     y: vel.y,
