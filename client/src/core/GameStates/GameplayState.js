@@ -19,39 +19,46 @@ export class GameplayState extends GameState {
         this.systemMsg = { msg: '', timer: 0 };
         this.weaponName = { name: '', timer: 0, ammo: 0, maxAmmo: 0 };
         this.isDead = false;
+        this.showScoreboard = false;
 
         const hud = document.getElementById('player-ui');
         if (hud) hud.style.display = 'block';
 
+        this.updateHUDPlaneSize = this.updateHUDPlaneSize.bind(this);
         this.initHUDPlane();
 
-        this.showSystemMessage('U suck.')
-        this.showWeaponName("Fist'er");
+        this.showSystemMessage('Match Started!');
+        this.showWeaponName("Fist'er", "melee", -1, 0);
 
-        window.addEventListener('resize', this.updateHUDPlaneSize)
+        window.addEventListener('resize', this.updateHUDPlaneSize);
+
         window.addEventListener('wheel', () => {
-            this.showWeaponName(weapons[this.weaponManager.current_weapon].name,
-                weapons[this.weaponManager.current_weapon].type,
-                this.weaponManager.ammo_left[this.weaponManager.current_weapon],
-                weapons[this.weaponManager.current_weapon].ammo)
+            if (!this.weaponManager || !this.weaponManager.current_weapon) return;
+            const currentWeapon = this.weaponManager.current_weapon;
+            this.showWeaponName(weapons[currentWeapon].name,
+                weapons[currentWeapon].type,
+                this.weaponManager.ammo_left[currentWeapon],
+                weapons[currentWeapon].ammo);
         });
 
         window.addEventListener('mousedown', () => {
-            this.showWeaponName(weapons[this.weaponManager.current_weapon].name,
-                weapons[this.weaponManager.current_weapon].type,
-                this.weaponManager.ammo_left[this.weaponManager.current_weapon],
-                weapons[this.weaponManager.current_weapon].ammo)
-        })
+            if (!this.weaponManager || !this.weaponManager.current_weapon) return;
+            const currentWeapon = this.weaponManager.current_weapon;
+            this.showWeaponName(weapons[currentWeapon].name,
+                weapons[currentWeapon].type,
+                this.weaponManager.ammo_left[currentWeapon],
+                weapons[currentWeapon].ammo);
+        });
 
-        window.addEventListener('keydown', (e) => {
-            if (e.key === '`') {
-                this.showWeaponName(weapons[this.weaponManager.current_weapon].name,
-                    weapons[this.weaponManager.current_weapon].type,
-                    this.weaponManager.ammo_left[this.weaponManager.current_weapon],
-                    weapons[this.weaponManager.current_weapon].ammo)
-                this.showSystemMessage('Console Test')
-            }
-        })
+        this._keydownListener = (e) => {
+            if (e.key === '`') this.showScoreboard = true;
+        };
+        this._keyupListener = (e) => {
+            if (e.key === '`') this.showScoreboard = false;
+        };
+
+        window.addEventListener('keydown', this._keydownListener);
+        window.addEventListener('keyup', this._keyupListener);
     }
 
     showSystemMessage(msg) {
@@ -117,11 +124,12 @@ export class GameplayState extends GameState {
     }
 
     updateHUDPlaneSize() {
+        if (!this.canvas || !this.plane) return;
         const aspect = this.canvas.width / this.canvas.height;
-        const height = 0.32; // whatever feels right
+        const height = 0.32;
         const width = height * aspect;
 
-        this.plane.geometry.dispose(); // clean up old geometry
+        this.plane.geometry.dispose();
         this.plane.geometry = new THREE.PlaneGeometry(width, height);
     }
 
@@ -166,27 +174,22 @@ export class GameplayState extends GameState {
 
         const playerHealth = this.engine.player?.health ?? 300;
 
-        // low health effect (blur / dark edge)
-        // Temporarily disabled per request. Restore when ready.
-        /*
-        if (playerHealth < 150) {
-            const alpha = Math.max(0, 1 - (playerHealth / 150)) * 0.7; // max 70% opacity
-            ctx.fillStyle = `rgba(50, 0, 0, ${alpha})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            if (this.engine.renderer && this.engine.renderer.bloomPass) {
-                this.engine.renderer.bloomPass.strength = Math.max(0.1, alpha * 2.0);
-            }
-        } else if (this.engine.renderer && this.engine.renderer.bloomPass) {
-            this.engine.renderer.bloomPass.strength = 0.1;
-        }
-        */
+        // Match Timer (Top Center)
+        const timer = this.engine.netManager?.matchTimer || 0;
+        const mins = Math.floor(timer / 60).toString().padStart(2, '0');
+        const secs = (timer % 60).toString().padStart(2, '0');
+        ctx.font = '40px VT323';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`${mins}:${secs}`, canvas.width / 2, 10);
 
-        //the bloom guage :0
+        // The blood gauge 
         {
             const gaugeWidth = 400;
             const gaugeHeight = 20;
             const gaugeX = (canvas.width - gaugeWidth) / 2;
-            const gaugeY = 30;
+            const gaugeY = canvas.height - gaugeHeight - 20;
 
             const bloodRatio = Math.max(0, playerHealth / 300);
 
@@ -236,59 +239,59 @@ export class GameplayState extends GameState {
             ctx.fillText('health', canvas.width / 2, gaugeY - 4);
         }
 
-        //stats ui
-        if (this.systemMsg.timer > 0) {
-            let playerName = this.engine.name;  // e.g., "Player 1"
+        // Stats UI - Kills/Deaths (Bottom Left)
+        const pKills = this.engine.player?.kills || 0;
+        const pDeaths = this.engine.player?.deaths || 0;
+        ctx.font = '30px VT323';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#ffaa88';
+        ctx.fillText(`${pKills} K  ${pDeaths} D`, 10, canvas.height - 60);
 
-            this.scoreboard = [
-                { name: "test", score: 290 },
-                { name: "looser", score: 94 },
-                { name: "winner", score: 300 },
-                { name: "Player 1", score: 90 },
-                { name: "Player 2", score: 92 }
-            ];
+        // Dynamic Scoreboard Overlay
+        if (this.showScoreboard) {
+            const playersData = this.engine.netManager?.latestPlayersData || {};
+            const localId = this.engine.netManager?.localId;
+
+            this.scoreboard = [];
+            for (const id in playersData) {
+                const data = playersData[id];
+                this.scoreboard.push({
+                    id: id,
+                    name: id === localId ? 'You' : id.substring(0, 8),
+                    kills: data.kills || 0,
+                    deaths: data.deaths || 0,
+                    score: (data.kills || 0) * 100 // Using kills * 100 as basic score for now
+                });
+            }
 
             this.scoreboard.sort((a, b) => b.score - a.score);
+            this.scoreboard.forEach((entry, index) => { entry.rank = index + 1; });
 
-            this.scoreboard.forEach((entry, index) => {
-                entry.rank = index + 1;
-            });
+            let playerIndex = this.scoreboard.findIndex(entry => entry.id === localId);
 
-            let playerIndex = this.scoreboard.findIndex(entry => entry.name === playerName);
-
-            if (playerIndex !== -1) {
-                this.scoreboard[playerIndex].name = 'You';
-            }
-
+            // Logic: Top 3 + Player (if not in top 3), else top 4.
             this.visibleScoreboard = this.scoreboard.slice(0, 3);
-
-            if (playerIndex !== -1 && playerIndex > 2) {
+            if (playerIndex > 2) {
                 this.visibleScoreboard.push(this.scoreboard[playerIndex]);
+            } else if (this.scoreboard.length > 3) {
+                this.visibleScoreboard.push(this.scoreboard[3]);
             }
 
             ctx.font = '30px VT323';
-            ctx.textAlign = 'left';
             ctx.fillStyle = '#ffaa88';
-
-            ctx.fillText(`${this.engine.kills || 0} K  ${this.engine.deaths || 0} D`, 10, canvas.height - 60);
-
-            ctx.font = '30px VT323';
-
-            ctx.fillText("  Name    Score", 10, canvas.height - 210);
+            ctx.fillText("  Name      Score", 10, canvas.height - 210);
 
             this.visibleScoreboard.forEach((entry, i) => {
-
-                if (entry.name === 'You')
-                    ctx.fillStyle = '#ff0000'
-                else ctx.fillStyle = '#22aa00'
+                ctx.fillStyle = entry.id === localId ? '#ff0000' : '#22aa00';
                 let yOffset = canvas.height - 180 + i * 25;
                 let nameText = entry.name.padEnd(8, ' ');
                 let scoreText = entry.score.toString();
-                ctx.fillText(`${entry.rank.toString()} ${nameText}${scoreText}`, 10, yOffset);
+                ctx.fillText(`${entry.rank} ${nameText}  ${scoreText}`, 10, yOffset);
             });
         }
 
-        //crosshair ui
+        // Crosshair UI
         {
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
@@ -307,6 +310,7 @@ export class GameplayState extends GameState {
         if (this.systemMsg.timer > 0) {
             ctx.fillStyle = '#ff99aa';
             ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
             ctx.fillText(this.systemMsg.msg, canvas.width - 20, 30);
         }
 
@@ -314,11 +318,12 @@ export class GameplayState extends GameState {
             ctx.font = '40px Miskan';
             ctx.fillStyle = '#aaaaff';
             ctx.textAlign = 'right';
-            ctx.fillText(this.weaponName.name, canvas.width - 20, canvas.height - 20);
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(this.weaponName.name, canvas.width - 20, canvas.height - 40);
 
             ctx.font = '30px VT323';
             if (this.weaponName.ammo != -1)
-                ctx.fillText(`${this.weaponName.ammo}/${this.weaponName.maxAmmo}`, canvas.width - 20, canvas.height)
+                ctx.fillText(`${this.weaponName.ammo}/${this.weaponName.maxAmmo}`, canvas.width - 20, canvas.height - 10)
         }
 
         if (this.isDead) {
@@ -335,5 +340,8 @@ export class GameplayState extends GameState {
     }
 
     exit() {
+        window.removeEventListener('resize', this.updateHUDPlaneSize);
+        window.removeEventListener('keydown', this._keydownListener);
+        window.removeEventListener('keyup', this._keyupListener);
     }
 }

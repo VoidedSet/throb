@@ -167,10 +167,18 @@ export default class NetworkManger {
 
         // 3. Sync Players if in Gameplay
         if (data.state === 2 && data.players) {
+            this.latestPlayersData = data.players;
+
             this.handleStateUpdate(data.players);
             const localPlayer = data.players[this.localId];
+
             if (localPlayer && sm.currentState?.engine?.player) {
-                const manager = sm.currentState.engine.player.weaponManager;
+                const p = sm.currentState.engine.player;
+                const manager = p.weaponManager;
+
+                p.kills = localPlayer.kills || 0;
+                p.deaths = localPlayer.deaths || 0;
+
                 if (localPlayer.w1 && localPlayer.w2) {
                     manager.weapon_inventory = [localPlayer.w1, localPlayer.w2];
                 }

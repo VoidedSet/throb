@@ -236,6 +236,9 @@ public class Room {
             case LOADOUT_SELECTION:
                 if (now >= stateEndTime) {
                     state = RoomState.GAMEPLAY;
+
+                    stateEndTime = now + 600000;
+
                     System.out.println("Room " + roomId + " -> Gameplay");
 
                     int i = 0;
@@ -390,6 +393,9 @@ public class Room {
 
                     pNode.put("hp", p.health);
                     pNode.put("blood", p.blood);
+
+                    pNode.put("kills", p.kills);
+                    pNode.put("deaths", p.deaths);
 
                     if (p.loadout != null && p.loadout.length == 2) {
                         pNode.put("w1", p.loadout[0]);
