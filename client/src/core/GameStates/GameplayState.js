@@ -167,6 +167,8 @@ export class GameplayState extends GameState {
         const playerHealth = this.engine.player?.health ?? 300;
 
         // low health effect (blur / dark edge)
+        // Temporarily disabled per request. Restore when ready.
+        /*
         if (playerHealth < 150) {
             const alpha = Math.max(0, 1 - (playerHealth / 150)) * 0.7; // max 70% opacity
             ctx.fillStyle = `rgba(50, 0, 0, ${alpha})`;
@@ -177,6 +179,7 @@ export class GameplayState extends GameState {
         } else if (this.engine.renderer && this.engine.renderer.bloomPass) {
             this.engine.renderer.bloomPass.strength = 0.1;
         }
+        */
 
         //the bloom guage :0
         {

@@ -293,15 +293,61 @@ public class Room {
 
         if (state == RoomState.GAMEPLAY) {
             for (Player p : players.values()) {
-                if (p.isSprinting)
-                    p.blood -= (5.0 / 60.0);
-                else if (p.isMoving)
-                    p.blood -= (1.0 / 60.0);
+                // Void death first
+                if (p.y < -15) {
+                    p.deaths++;
+                    p.damageReceivedFrom.clear();
+                    Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
+                    p.x = sp.x;
+                    p.y = sp.y;
+                    p.z = sp.z;
+                    p.health = 300;
+                    p.blood = 300.0;
 
-                if (p.blood <= 0) {
-                    p.blood = 0;
-                    p.health = 0;
+                    ObjectNode dmgPacket = mapper.createObjectNode();
+                    dmgPacket.put("type", "KILL");
+                    dmgPacket.put("killerId", "");
+                    dmgPacket.put("killedId", p.id);
+                    ObjectNode spNode = dmgPacket.putObject("spawn");
+                    spNode.put("x", sp.x);
+                    spNode.put("y", sp.y);
+                    spNode.put("z", sp.z);
+                    broadcast(dmgPacket.toString());
+                    continue;
+                }
+
+                double decrease = 0.0;
+                if (p.isSprinting) decrease = (5.0 / 60.0);
+                else if (p.isMoving) decrease = (1.0 / 60.0);
+
+                if (decrease > 0) {
+                    // If subtracting this tick would drop below zero, kill now
+                    if (p.blood - decrease <= 0.0) {
+                        p.deaths++;
+                        p.damageReceivedFrom.clear();
+                        Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
+                        p.x = sp.x;
+                        p.y = sp.y;
+                        p.z = sp.z;
+                        p.health = 300;
+                        p.blood = 300.0;
+
+                        ObjectNode dmgPacket = mapper.createObjectNode();
+                        dmgPacket.put("type", "KILL");
+                        dmgPacket.put("killerId", "");
+                        dmgPacket.put("killedId", p.id);
+                        ObjectNode spNode = dmgPacket.putObject("spawn");
+                        spNode.put("x", sp.x);
+                        spNode.put("y", sp.y);
+                        spNode.put("z", sp.z);
+                        broadcast(dmgPacket.toString());
+                        continue;
+                    } else {
+                        p.blood = p.blood - decrease;
+                        p.health = (int) Math.ceil(p.blood);
+                    }
                 } else {
+                    // No movement-based drain; ensure health sync
                     p.health = (int) Math.ceil(p.blood);
                 }
             }
