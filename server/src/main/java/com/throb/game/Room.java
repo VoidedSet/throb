@@ -317,8 +317,10 @@ public class Room {
                 }
 
                 double decrease = 0.0;
-                if (p.isSprinting) decrease = (5.0 / 60.0);
-                else if (p.isMoving) decrease = (1.0 / 60.0);
+                if (p.isSprinting)
+                    decrease = (5.0 / 60.0);
+                else if (p.isMoving)
+                    decrease = (1.0 / 60.0);
 
                 if (decrease > 0) {
                     // If subtracting this tick would drop below zero, kill now
