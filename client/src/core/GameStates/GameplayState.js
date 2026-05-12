@@ -20,6 +20,7 @@ export class GameplayState extends GameState {
         this.weaponName = { name: '', timer: 0, ammo: 0, maxAmmo: 0 };
         this.isDead = false;
         this.showScoreboard = false;
+        this.killFeed = [];
 
         const hud = document.getElementById('player-ui');
         if (hud) hud.style.display = 'block';
@@ -61,6 +62,11 @@ export class GameplayState extends GameState {
         window.addEventListener('keyup', this._keyupListener);
     }
 
+    addKillFeedEvent(killer, killed, weapon) {
+        this.killFeed.unshift({ killer, killed, weapon, timer: 3.5 });
+        if (this.killFeed.length > 5) this.killFeed.pop();
+    }
+
     showSystemMessage(msg) {
         this.systemMsg.msg = msg;
         this.systemMsg.timer = 2.5;
@@ -95,6 +101,9 @@ export class GameplayState extends GameState {
 
         if (this.weaponName.timer > 0)
             this.weaponName.timer -= deltaTime;
+
+        this.killFeed.forEach(k => k.timer -= deltaTime);
+        this.killFeed = this.killFeed.filter(k => k.timer > 0);
 
         const eye = this.eye;
         if (!eye) {
@@ -307,11 +316,17 @@ export class GameplayState extends GameState {
             ctx.fill();
         }
 
-        if (this.systemMsg.timer > 0) {
-            ctx.fillStyle = '#ff99aa';
+        if (this.killFeed.length > 0) {
+            ctx.font = '28px VT323';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'top';
-            ctx.fillText(this.systemMsg.msg, canvas.width - 20, 30);
+
+            this.killFeed.forEach((kill, i) => {
+                const alpha = Math.min(1, kill.timer);
+                ctx.fillStyle = `rgba(255, 153, 170, ${alpha})`;
+
+                ctx.fillText(`${kill.killer} [${kill.weapon}] ${kill.killed}`, canvas.width - 20, 30 + (i * 30));
+            });
         }
 
         if (this.weaponName.timer > 0) {

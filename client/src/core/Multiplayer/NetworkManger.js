@@ -51,6 +51,13 @@ export default class NetworkManger {
             }
             else if (data.type === 'KILL') {
                 console.log(`[Server] KILL! ${data.killerId} killed ${data.killedId}.`);
+
+                if (this.sm.currentState instanceof GameplayState) {
+                    const killer = data.killerId ? (data.killerId === this.localId ? 'You' : data.killerId.substring(0, 6)) : 'Void';
+                    const killed = data.killedId === this.localId ? 'You' : data.killedId.substring(0, 6);
+                    this.sm.currentState.addKillFeedEvent(killer, killed, data.weapon || 'fell');
+                }
+
                 if (data.killedId === this.localId) {
                     if (this.sm.currentState instanceof GameplayState) {
                         this.sm.currentState.showDeathMessage();

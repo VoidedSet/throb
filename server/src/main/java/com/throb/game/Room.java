@@ -191,11 +191,13 @@ public class Room {
                                     dmgPacket.put("type", "KILL");
                                     dmgPacket.put("killerId", p.id);
                                     dmgPacket.put("killedId", target.id);
+                                    dmgPacket.put("weapon", weaponUsed);
 
                                     ObjectNode spNode = dmgPacket.putObject("spawn");
                                     spNode.put("x", sp.x);
                                     spNode.put("y", sp.y);
                                     spNode.put("z", sp.z);
+
                                 } else {
                                     dmgPacket.put("type", "DAMAGE");
                                     dmgPacket.put("targetId", target.id);
@@ -261,6 +263,9 @@ public class Room {
                         stateEndTime = now + 15000;
                         System.out
                                 .println("Room " + roomId + " -> Match Ended because player " + p.id + " got 2 kills.");
+
+                        com.throb.network.SupabaseClient.saveMatchResults(roomId, players.values(), p.id);
+
                         break;
                     }
                 }
