@@ -8,18 +8,30 @@ import java.util.Collection;
 
 import com.throb.model.Player;
 
+// import io.github.cdimascio.dotenv.Dotenv;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 public class SupabaseClient {
-    private static final String URL = "https://-.supabase.co/rest/v1/",
-            KEY = "-";
+    // private static final Dotenv dotenv =
+    // Dotenv.configure().ignoreIfMissing().load();
+    // private static final String URL = dotenv.get("SUPABASE_URL", "").trim();
+    // private static final String KEY = dotenv.get("SUPABASE_KEY", "").trim();
+
+    private static final String URL = "https://lfmkpzcilegytwivqamf.supabase.co/rest/v1/match_results";
+    private static final String KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbWtwemNpbGVneXR3aXZxYW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDIzMjIsImV4cCI6MjA5NDE3ODMyMn0.9toOBjhARfHKi1AaAKu30_nK8RzJslYEj82CDdjng0U";
 
     private static final HttpClient client = HttpClient.newHttpClient();
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public static void saveMatchResults(String roomId, Collection<Player> players, String winnerId) {
+
+        if (URL.isEmpty() || KEY.isEmpty()) {
+            System.out.println("[Supabase] ERROR: Missing SUPABASE_URL or SUPABASE_KEY in .env");
+            return;
+        }
+
         try {
             ArrayNode rows = mapper.createArrayNode();
 

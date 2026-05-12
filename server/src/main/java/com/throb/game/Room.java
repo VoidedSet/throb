@@ -265,7 +265,6 @@ public class Room {
                                 .println("Room " + roomId + " -> Match Ended because player " + p.id + " got 2 kills.");
 
                         com.throb.network.SupabaseClient.saveMatchResults(roomId, players.values(), p.id);
-
                         break;
                     }
                 }
@@ -296,43 +295,13 @@ public class Room {
     private void tick() {
         if (players.isEmpty())
             return;
+        try {
+            updateLogic();
 
-        updateLogic();
-
-        if (state == RoomState.GAMEPLAY) {
-            for (Player p : players.values()) {
-                // Void death first
-                if (p.y < -15) {
-                    p.deaths++;
-                    p.damageReceivedFrom.clear();
-                    Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
-                    p.x = sp.x;
-                    p.y = sp.y;
-                    p.z = sp.z;
-                    p.health = 300;
-                    p.blood = 300.0;
-
-                    ObjectNode dmgPacket = mapper.createObjectNode();
-                    dmgPacket.put("type", "KILL");
-                    dmgPacket.put("killerId", "");
-                    dmgPacket.put("killedId", p.id);
-                    ObjectNode spNode = dmgPacket.putObject("spawn");
-                    spNode.put("x", sp.x);
-                    spNode.put("y", sp.y);
-                    spNode.put("z", sp.z);
-                    broadcast(dmgPacket.toString());
-                    continue;
-                }
-
-                double decrease = 0.0;
-                if (p.isSprinting)
-                    decrease = (5.0 / 60.0);
-                else if (p.isMoving)
-                    decrease = (1.0 / 60.0);
-
-                if (decrease > 0) {
-                    // If subtracting this tick would drop below zero, kill now
-                    if (p.blood - decrease <= 0.0) {
+            if (state == RoomState.GAMEPLAY) {
+                for (Player p : players.values()) {
+                    // Void death first
+                    if (p.y < -15) {
                         p.deaths++;
                         p.damageReceivedFrom.clear();
                         Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
@@ -352,67 +321,102 @@ public class Room {
                         spNode.put("z", sp.z);
                         broadcast(dmgPacket.toString());
                         continue;
+                    }
+
+                    double decrease = 0.0;
+                    if (p.isSprinting)
+                        decrease = (5.0 / 60.0);
+                    else if (p.isMoving)
+                        decrease = (1.0 / 60.0);
+
+                    if (decrease > 0) {
+                        // If subtracting this tick would drop below zero, kill now
+                        if (p.blood - decrease <= 0.0) {
+                            p.deaths++;
+                            p.damageReceivedFrom.clear();
+                            Vector3 sp = spawns[(int) (Math.random() * spawns.length)];
+                            p.x = sp.x;
+                            p.y = sp.y;
+                            p.z = sp.z;
+                            p.health = 300;
+                            p.blood = 300.0;
+
+                            ObjectNode dmgPacket = mapper.createObjectNode();
+                            dmgPacket.put("type", "KILL");
+                            dmgPacket.put("killerId", "");
+                            dmgPacket.put("killedId", p.id);
+                            ObjectNode spNode = dmgPacket.putObject("spawn");
+                            spNode.put("x", sp.x);
+                            spNode.put("y", sp.y);
+                            spNode.put("z", sp.z);
+                            broadcast(dmgPacket.toString());
+                            continue;
+                        } else {
+                            p.blood = p.blood - decrease;
+                            p.health = (int) Math.ceil(p.blood);
+                        }
                     } else {
-                        p.blood = p.blood - decrease;
+                        // No movement-based drain; ensure health sync
                         p.health = (int) Math.ceil(p.blood);
                     }
-                } else {
-                    // No movement-based drain; ensure health sync
-                    p.health = (int) Math.ceil(p.blood);
                 }
             }
-        }
 
-        try {
-            ObjectNode root = mapper.createObjectNode();
+            try {
+                ObjectNode root = mapper.createObjectNode();
 
-            root.put("type", "STATE_UPDATE");
-            root.put("state", state.id);
-            // root.put("blood", bloodGauge); // Global blood removed
+                root.put("type", "STATE_UPDATE");
+                root.put("state", state.id);
+                // root.put("blood", bloodGauge); // Global blood removed
 
-            if (state == RoomState.LOADOUT_SELECTION || state == RoomState.MATCH_RESULTS
-                    || state == RoomState.GAMEPLAY) {
-                long timeLeft = Math.max(0, (stateEndTime - System.currentTimeMillis()) / 1000);
-                root.put("timer", timeLeft);
-            }
+                if (state == RoomState.LOADOUT_SELECTION || state == RoomState.MATCH_RESULTS
+                        || state == RoomState.GAMEPLAY) {
+                    long timeLeft = Math.max(0, (stateEndTime - System.currentTimeMillis()) / 1000);
+                    root.put("timer", timeLeft);
+                }
 
-            if (state == RoomState.GAMEPLAY || state == RoomState.HEART_EXPLOADED || state == RoomState.MATCH_RESULTS) {
-                ObjectNode playersNode = root.putObject("players");
-                for (Player p : players.values()) {
-                    ObjectNode pNode = playersNode.putObject(p.id);
+                if (state == RoomState.GAMEPLAY || state == RoomState.HEART_EXPLOADED
+                        || state == RoomState.MATCH_RESULTS) {
+                    ObjectNode playersNode = root.putObject("players");
+                    for (Player p : players.values()) {
+                        ObjectNode pNode = playersNode.putObject(p.id);
 
-                    ObjectNode pos = pNode.putObject("pos");
-                    pos.put("x", p.x);
-                    pos.put("y", p.y);
-                    pos.put("z", p.z);
+                        ObjectNode pos = pNode.putObject("pos");
+                        pos.put("x", p.x);
+                        pos.put("y", p.y);
+                        pos.put("z", p.z);
 
-                    ObjectNode rot = pNode.putObject("rot");
-                    rot.put("x", p.rotX);
-                    rot.put("y", p.rotY);
-                    rot.put("z", p.rotZ);
+                        ObjectNode rot = pNode.putObject("rot");
+                        rot.put("x", p.rotX);
+                        rot.put("y", p.rotY);
+                        rot.put("z", p.rotZ);
 
-                    // ObjectNode vel = pNode.putObject("vel");
-                    // vel.put("x", p.vx);
-                    // vel.put("y", p.vy);
-                    // vel.put("z", p.vz);
+                        // ObjectNode vel = pNode.putObject("vel");
+                        // vel.put("x", p.vx);
+                        // vel.put("y", p.vy);
+                        // vel.put("z", p.vz);
 
-                    pNode.put("hp", p.health);
-                    pNode.put("blood", p.blood);
+                        pNode.put("hp", p.health);
+                        pNode.put("blood", p.blood);
 
-                    pNode.put("kills", p.kills);
-                    pNode.put("deaths", p.deaths);
+                        pNode.put("kills", p.kills);
+                        pNode.put("deaths", p.deaths);
 
-                    if (p.loadout != null && p.loadout.length == 2) {
-                        pNode.put("w1", p.loadout[0]);
-                        pNode.put("w2", p.loadout[1]);
+                        if (p.loadout != null && p.loadout.length == 2) {
+                            pNode.put("w1", p.loadout[0]);
+                            pNode.put("w2", p.loadout[1]);
+                        }
+                        pNode.put("ammo", p.ammo);
                     }
-                    pNode.put("ammo", p.ammo);
                 }
-            }
 
-            broadcast(mapper.writeValueAsString(root));
-        } catch (Exception e) {
-            e.printStackTrace();
+                broadcast(mapper.writeValueAsString(root));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } catch (Throwable t) {
+            System.err.println("[Room " + roomId + "] TICK CRASH CAUGHT:");
+            t.printStackTrace();
         }
     }
 
