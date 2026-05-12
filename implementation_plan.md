@@ -29,8 +29,8 @@ Two clients moving past each other at typical latency (50-100ms)
 Should see zero jerkiness, smooth continuous movement
 Files: Room.java (tick rate), Player.java (add velocity fields)
 
-**🟡** Phase 2: Spawn System & Match Loop
-Status: Partially Completed (In Progress)
+✅ Phase 2: Spawn System & Match Loop
+Status: Completed
 Depends on: Phase 1 | Blocks: Phase 5
 
 Currently players respawn at origin (0,1,0). Implement proper spawns:
@@ -39,14 +39,14 @@ Backend:
 - [DONE] Define 4-6 spawn points (hardcoded Vector3 locations for now)
 - [DONE] On kill: set player position to random spawn point
 - [DONE] On GAMEPLAY start: initialize all players at spawn points
-- [PENDING] Add match timer tracking (matchStartTime, end at 10 minutes)
+- [DONE] Add match timer tracking (matchStartTime, end at 10 minutes)
 - [DONE] Match loop implemented: 2 kills threshold added for match victory.
 - [DONE] Void fall death check added (y < -15 kills the player).
 
 Frontend:
 - [DONE] Sync spawn point from server
-- [PENDING] Display match timer in HUD (MM:SS format)
-- [PENDING] Display current score/kills/deaths
+- [DONE] Display match timer in HUD (MM:SS format)
+- [DONE] Display current score/kills/deaths
 - [DONE] Removed DOM-based death screen overlay and integrated it correctly into the Three.js/Canvas 2D HUD.
 
 Game state:
@@ -82,15 +82,15 @@ Balance:
 Encourages strategic play: sneak vs rush vs timing
 Files: Room.java (blood drain logic), NetworkManger.js (sync blood), GameplayState.js (display blood meter)
 
-🔴 Phase 4: Complete In-Game HUD
-Status: Not Started / Planning
+🟡 Phase 4: Complete In-Game HUD
+Status: Partially Completed
 Depends on: Phase 2, 3 | Blocks: None (parallel-able with Phase 5)
 
 Implement full canvas-based HUD (no DOM):
 
 HUD Layout:
-- [DONE] Bottom-Righ and center: Health bar + number, Ammo counter, Current weapon
-- [DONE] Bottom-center: Blood meter (red bar showing remaining)
+- [DONE] Bottom-Right: Ammo counter, Current weapon
+- [DONE] Bottom-center: Blood/heatlh meter (red bar showing remaining)
 - [DONE] Center: Crosshair (an eye)
 - [DONE] Bottom-left: Score, Kills, Deaths (simple scoreboard showing top3)
 - [DONE] Top-center: Match timer (MM:SS)
@@ -146,6 +146,7 @@ client/.../NetworkManger.js	Handle blood/timer/results packets, sync kill feed
 client/.../GameplayState.js	Implement full HUD rendering (health, ammo, kill feed, minimap)
 client/.../multiplayer_dependancy.js	Remove all DOM UI, route to canvas
 client/.../MatchResult.js	Populate scoreboard from server data
+
 Verification Update
 ✅ Phase 1: Server and shooting synced, Smoothness improved.
 🟡 Phase 2: Canvas death screen done, 2-kill win loop done, void death done. Waiting on respawn routing and timers.

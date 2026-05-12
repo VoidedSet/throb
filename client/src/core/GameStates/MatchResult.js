@@ -72,11 +72,31 @@ export class MatchResults extends GameState {
             : lossPhrases[Math.floor(Math.random() * lossPhrases.length)];
     }
 
-    updateHUDTexture(result = 'win', players = []) {
+    updateHUDTexture(playersData = {}, localId = '') {
         const ctx = this.ctx;
         const canvas = this.canvas;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Parse data
+        let players = [];
+        for (const id in playersData) {
+            players.push({
+                id: id,
+                name: id === localId ? 'You' : id.substring(0, 8),
+                kills: playersData[id].kills || 0,
+                deaths: playersData[id].deaths || 0,
+                score: (playersData[id].kills || 0) * 100
+            });
+        }
+
+        players.sort((a, b) => b.score - a.score);
+
+        // Win if local player has top score
+        let result = 'loss';
+        if (players.length > 0 && players[0].id === localId) {
+            result = 'win';
+        }
 
         // === Result Phrase ===
         ctx.font = '80px Miskan';
@@ -87,40 +107,28 @@ export class MatchResults extends GameState {
         // === Scoreboard ===
         const startY = 140;
         const rowHeight = 40;
-        const colX = {
-            name: 50,
-            kills: canvas.width - 280,
-            deaths: canvas.width - 200,
-            score: canvas.width - 120,
-        };
+        const colX = { name: 50, kills: canvas.width - 280, deaths: canvas.width - 200, score: canvas.width - 120 };
 
         ctx.textAlign = 'left';
         ctx.font = '32px monospace';
         ctx.fillStyle = '#ffffff';
 
-        // Headers
         ctx.fillText('Name', colX.name, startY);
         ctx.fillText('K', colX.kills, startY);
         ctx.fillText('D', colX.deaths, startY);
         ctx.fillText('Score', colX.score, startY);
 
-        // Divider
         ctx.strokeStyle = '#00ffaa';
         ctx.beginPath();
         ctx.moveTo(40, startY + 8);
         ctx.lineTo(canvas.width - 40, startY + 8);
         ctx.stroke();
 
-        players.sort((a, b) => b.score - a.score);
-
         // === Draw Player Rows ===
-        const localPlayerName = this.engine?.playerName?.toLowerCase() || 'voidedset';
-
         players.forEach((p, i) => {
             const y = startY + rowHeight * (i + 1);
-            const isLocal = p.name.toLowerCase() === localPlayerName;
+            const isLocal = p.id === localId;
 
-            // Highlight local player
             if (isLocal) {
                 ctx.font = 'bold 40px monospace';
                 ctx.fillStyle = '#ee7722';

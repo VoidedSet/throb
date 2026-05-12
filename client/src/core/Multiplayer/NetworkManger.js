@@ -144,6 +144,11 @@ export default class NetworkManger {
                 case 4: // MATCH_RESULTS
                     console.log('[Room] Results...');
                     sm.setState(MatchResults);
+                    setTimeout(() => {
+                        if (sm.currentState instanceof MatchResults && this.latestPlayersData) {
+                            sm.currentState.updateHUDTexture(this.latestPlayersData, this.localId);
+                        }
+                    }, 150);
                     break;
             }
         }

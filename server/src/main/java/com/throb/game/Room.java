@@ -371,7 +371,7 @@ public class Room {
                 root.put("timer", timeLeft);
             }
 
-            if (state == RoomState.GAMEPLAY) {
+            if (state == RoomState.GAMEPLAY || state == RoomState.HEART_EXPLOADED || state == RoomState.MATCH_RESULTS) {
                 ObjectNode playersNode = root.putObject("players");
                 for (Player p : players.values()) {
                     ObjectNode pNode = playersNode.putObject(p.id);
