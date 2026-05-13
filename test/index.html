@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Dream Face Sandbox - Retro Render</title>
+    <title>Dream Face Sandbox</title>
     <style>
         body {
             margin: 0;
@@ -21,38 +21,67 @@
             left: 10px;
             color: #00ffaa;
             font-family: monospace;
-            font-size: 16px;
+            font-size: 14px;
             background: rgba(0, 0, 0, 0.8);
-            padding: 10px;
+            padding: 8px 12px;
             border: 1px solid #00ffaa;
+            pointer-events: none;
         }
     </style>
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
         }
+    }
     </script>
 </head>
 
 <body>
-    <div id="info">Dream Face Sandbox<br>Retro Post-Processing Active</div>
+    <div id="info">Dream Face Sandbox — Bodycam Censor</div>
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-        // Post-Processing Imports
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
         import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+        import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
-        // 1. Setup Scene & Renderer
+        // ─────────────────────────────────────────────────────────────
+        // CENSOR PARAMS
+        // ─────────────────────────────────────────────────────────────
+        const censorParams = {
+            blockSize: 20.0,
+            uvCoarseness: 12.0,
+            fps: 8.0,
+            jitter: 0.06,
+        };
+
+        // ─────────────────────────────────────────────────────────────
+        // POST PARAMS
+        // ─────────────────────────────────────────────────────────────
+        const postParams = {
+            pixelate: 4,
+            normalEdge: 0.4,
+            depthEdge: 0.4,
+            posterLevels: 9.0,
+            posterStrength: 0.3,
+            bloomStrength: 0.5,
+            bloomRadius: 0.2,
+            bloomThreshold: 0.1,
+            chromaStrength: 0.005,
+            ambientIntensity: 1.5,
+            dirIntensity: 2.5,
+        };
+
+        // ─────────────────────────────────────────────────────────────
+        // SCENE
+        // ─────────────────────────────────────────────────────────────
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.5, 3);
@@ -60,60 +89,119 @@
         const renderer = new THREE.WebGLRenderer({ antialias: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.outputColorSpace = THREE.SRGBColorSpace; // Keeps colors from washing out
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.target.set(0, 1, 0);
+        const orbitControls = new OrbitControls(camera, renderer.domElement);
+        orbitControls.target.set(0, 1, 0);
 
-        // 2. BRIGHTER Lighting
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5)); // Cranked up ambient
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5); // Strong main light
+        // ─────────────────────────────────────────────────────────────
+        // LIGHTS
+        // ─────────────────────────────────────────────────────────────
+        const ambientLight = new THREE.AmbientLight(0xffffff, postParams.ambientIntensity);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, postParams.dirIntensity);
         dirLight.position.set(5, 5, 5);
+        dirLight.castShadow = true;
         scene.add(dirLight);
-        const backLight = new THREE.DirectionalLight(0xaaaaff, 1.0); // Blue rim light
+
+        const backLight = new THREE.DirectionalLight(0xaaaaff, 1.0);
         backLight.position.set(-5, 5, -5);
         scene.add(backLight);
 
-        // 3. Inline Custom Shaders (Posterization & Chromatic Aberration)
+        const groundSpot = new THREE.SpotLight(0xffffff, 3.0);
+        groundSpot.position.set(0, 3, 0);
+        groundSpot.target.position.set(0, 0, 0);
+        groundSpot.angle = Math.PI / 10;
+        groundSpot.penumbra = 0.85;
+        groundSpot.distance = 8;
+        groundSpot.castShadow = true;
+        scene.add(groundSpot);
+        scene.add(groundSpot.target);
+
+        // ─────────────────────────────────────────────────────────────
+        // GROUND PLANE
+        // ─────────────────────────────────────────────────────────────
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(40, 40),
+            new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 1.0, metalness: 0.0 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // ─────────────────────────────────────────────────────────────
+        // POST-PROCESS SHADERS
+        // ─────────────────────────────────────────────────────────────
         const PosterizationShader = {
-            uniforms: { "tDiffuse": { value: null }, "levels": { value: 9.0 }, "strength": { value: 0.3 } },
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            uniforms: {
+                tDiffuse: { value: null },
+                levels: { value: postParams.posterLevels },
+                strength: { value: postParams.posterStrength }
+            },
+            vertexShader: `
+            varying vec2 vUv;
+            void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+        `,
             fragmentShader: `
-                uniform sampler2D tDiffuse; uniform float levels; uniform float strength; varying vec2 vUv;
-                void main() {
-                    vec4 texel = texture2D(tDiffuse, vUv);
-                    vec3 posterized = floor(texel.rgb * levels) / levels;
-                    gl_FragColor = vec4(mix(texel.rgb, posterized, strength), texel.a);
-                }`
+            uniform sampler2D tDiffuse;
+            uniform float levels, strength;
+            varying vec2 vUv;
+            void main() {
+                vec4 texel = texture2D(tDiffuse, vUv);
+                vec3 posterized = floor(texel.rgb * levels) / levels;
+                gl_FragColor = vec4(mix(texel.rgb, posterized, strength), texel.a);
+            }
+        `
         };
 
         const ChromaticAberrationShader = {
-            uniforms: { "tDiffuse": { value: null }, "aberrationStrength": { value: 0.005 } },
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            uniforms: {
+                tDiffuse: { value: null },
+                aberrationStrength: { value: postParams.chromaStrength }
+            },
+            vertexShader: `
+            varying vec2 vUv;
+            void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+        `,
             fragmentShader: `
-                uniform sampler2D tDiffuse; uniform float aberrationStrength; varying vec2 vUv;
-                void main() {
-                    vec2 distFromCenter = vUv - 0.5;
-                    vec2 aberrated = aberrationStrength * pow(length(distFromCenter), 2.0) * normalize(distFromCenter);
-                    float r = texture2D(tDiffuse, vUv + aberrated).r;
-                    float g = texture2D(tDiffuse, vUv).g;
-                    float b = texture2D(tDiffuse, vUv - aberrated).b;
-                    gl_FragColor = vec4(r, g, b, 1.0);
-                }`
+            uniform sampler2D tDiffuse;
+            uniform float aberrationStrength;
+            varying vec2 vUv;
+            void main() {
+                vec2 d  = vUv - 0.5;
+                vec2 ab = aberrationStrength * pow(length(d), 2.0) * normalize(d);
+                float r = texture2D(tDiffuse, vUv + ab).r;
+                float g = texture2D(tDiffuse, vUv).g;
+                float b = texture2D(tDiffuse, vUv - ab).b;
+                gl_FragColor = vec4(r, g, b, 1.0);
+            }
+        `
         };
 
-        // 4. Setup EffectComposer (Matches your Renderer.js)
+        // ─────────────────────────────────────────────────────────────
+        // EFFECT COMPOSER
+        // ─────────────────────────────────────────────────────────────
         const composer = new EffectComposer(renderer);
         composer.addPass(new RenderPass(scene, camera));
 
-        const pixelatedPass = new RenderPixelatedPass(4, scene, camera, { normalEdgeStrength: 0.4, depthEdgeStrength: 0.4 });
+        const pixelatedPass = new RenderPixelatedPass(
+            postParams.pixelate, scene, camera,
+            { normalEdgeStrength: postParams.normalEdge, depthEdgeStrength: postParams.depthEdge }
+        );
         composer.addPass(pixelatedPass);
 
         const posterPass = new ShaderPass(PosterizationShader);
         composer.addPass(posterPass);
 
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.2, 0.1);
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            postParams.bloomStrength, postParams.bloomRadius, postParams.bloomThreshold
+        );
         composer.addPass(bloomPass);
 
         const chromaPass = new ShaderPass(ChromaticAberrationShader);
@@ -121,172 +209,186 @@
 
         composer.addPass(new OutputPass());
 
-        // 5. The Dream Face Shader
-        // const dreamFaceMaterial = new THREE.ShaderMaterial({
-        //     uniforms: {
-        //         time: { value: 0.0 },
-        //         map: { value: null },
-        //         pixelSize: { value: 12.0 } // Size of the censor blocks in monitor pixels
-        //     },
-        //     vertexShader: `
-        //         varying vec2 vUv; 
-        //         void main() { 
-        //             vUv = uv; 
-        //             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); 
-        //         }
-        //     `,
-        //     fragmentShader: `
-        //         uniform float time; 
-        //         uniform sampler2D map; 
-        //         uniform float pixelSize; 
-        //         varying vec2 vUv;
-
-        //         // Standard random noise generator
-        //         float rand(vec2 co){ 
-        //             return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); 
-        //         }
-
-        //         void main() {
-        //             // 1. gl_FragCoord gives the exact pixel on your monitor.
-        //             // We divide and floor it to create a rigid 2D screen grid (the censor blocks).
-        //             vec2 chunk = floor(gl_FragCoord.xy / pixelSize);
-
-        //             // 2. Slow down the jitter so it updates like a crappy security camera (~8 fps)
-        //             float timeStep = floor(time * 8.0); 
-
-        //             // 3. Generate a random UV coordinate for this specific screen chunk
-        //             vec2 randomUv = vec2(
-        //                 rand(chunk + timeStep),
-        //                 rand(chunk + timeStep + 42.0)
-        //             );
-
-        //             // 4. Sample the original texture using the random UV
-        //             // This ensures the censor blocks are made of the actual colors of the helmet
-        //             vec4 color = texture2D(map, randomUv);
-
-        //             // 5. Desaturate it slightly to match that gritty Bodycam vibe
-        //             float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-        //             color.rgb = mix(color.rgb, vec3(gray), 0.6);
-
-        //             gl_FragColor = color;
-        //         }
-        //     `
-        // });
-
-
-        const dreamFaceMaterial = new THREE.ShaderMaterial({
+        // ─────────────────────────────────────────────────────────────
+        // HYBRID SCREENSPACE CENSOR MATERIAL (BASE)
+        // ─────────────────────────────────────────────────────────────
+        const censorMat = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0.0 },
                 map: { value: null },
-                pixelSize: { value: 32.0 } // Chunks across the 3D face
+                blockSize: { value: censorParams.blockSize },
+                uvCoarseness: { value: censorParams.uvCoarseness },
+                fps: { value: censorParams.fps },
+                jitter: { value: censorParams.jitter },
+                resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
             },
             vertexShader: `
-        varying vec2 vUv; 
-        void main() { 
-            vUv = uv; 
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); 
-        }
-    `,
+            varying vec2 vUv;
+            varying vec4 vScreenPos;
+
+            void main() {
+                vUv = uv;
+                vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                vScreenPos = clip;
+                gl_Position = clip;
+            }
+        `,
             fragmentShader: `
-        uniform float time; 
-        uniform sampler2D map; 
-        uniform float pixelSize; 
-        varying vec2 vUv;
+            uniform float time, fps, jitter, blockSize, uvCoarseness;
+            uniform sampler2D map;
+            uniform vec2 resolution;
 
-        float rand(vec2 co){ 
-            return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453); 
+            varying vec2 vUv;
+            varying vec4 vScreenPos;
+
+            float rand(vec2 c) {
+                return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453);
+            }
+
+            void main() {
+                vec2 ndc    = vScreenPos.xy / vScreenPos.w;
+                vec2 screen = (ndc * 0.5 + 0.5) * resolution;
+                vec2 block  = floor(screen / blockSize);
+                float t = floor(time * fps);
+                vec2 jitterOff = vec2(
+                    (rand(block + t)        - 0.5) * jitter,
+                    (rand(block + t + 42.0) - 0.5) * jitter
+                );
+                vec2 blockUv = floor(vUv * uvCoarseness) / uvCoarseness;
+                blockUv += jitterOff;
+                gl_FragColor = texture2D(map, blockUv);
+            }
+        `
+        });
+
+        // ─────────────────────────────────────────────────────────────
+        // SPAWN CHARS
+        // ─────────────────────────────────────────────────────────────
+        const allCensorMats = [];
+
+        function spawnChar(glbPath, meshContains, matContains, posX = 0) {
+            const mat = censorMat.clone();  // own instance, shares shader, own uniforms
+            mat.uniforms = {
+                time: { value: 0.0 },
+                map: { value: null },
+                blockSize: { value: censorParams.blockSize },
+                uvCoarseness: { value: censorParams.uvCoarseness },
+                fps: { value: censorParams.fps },
+                jitter: { value: censorParams.jitter },
+                resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            };
+
+            new GLTFLoader().load(glbPath, (gltf) => {
+                gltf.scene.position.x = posX;   // place in line
+                gltf.scene.rotation.y = 0;      // face camera — flip to Math.PI if backwards
+                scene.add(gltf.scene);
+
+                gltf.scene.traverse((child) => {
+                    if (!child.isMesh) return;
+                    child.castShadow = true;
+                    if (!child.name.includes(meshContains)) return;
+
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach((m, idx) => {
+                        if (!m.name.includes(matContains)) return;
+                        if (m.map) mat.uniforms.map.value = m.map;
+                        if (Array.isArray(child.material)) child.material[idx] = mat;
+                        else child.material = mat;
+                    });
+                });
+            });
+
+            allCensorMats.push(mat);  // tracked → time + gui updates hit all
         }
 
-        void main() {
-            // 3D Model UV grid
-            vec2 gridUv = floor(vUv * pixelSize) / pixelSize;
+        spawnChar('android.glb', 'FinalEchoMP', 'FE_helmet', -1.8);
+        spawnChar('Amphibian.glb', 'FE_Head_10', 'FE_helmet_10.001', 0.0);
+        spawnChar('cyborg.glb', 'FinalEchoMP', 'FE_helmet_05_MAT', 1.8);
+        spawnChar('Echo.glb', 'FinalEchoMP', 'FE_helmet_01_MAT', 3.6);
 
-            // 8 FPS stutter
-            float timeStep = floor(time * 8.0); 
 
-            // Small twitch jitter
-            float jitterX = (rand(gridUv + timeStep) - 0.5) * 0.08;
-            float jitterY = (rand(gridUv + timeStep + 42.0) - 0.5) * 0.08;
-            gridUv += vec2(jitterX, jitterY);
+        // ─────────────────────────────────────────────────────────────
+        // LIL.GUI
+        // ─────────────────────────────────────────────────────────────
+        const gui = new GUI({ title: 'Dream Face Controls' });
 
-            // Sample real face colors
-            vec4 color = texture2D(map, gridUv);
+        const cF = gui.addFolder('Censor Shader');
+        cF.add(censorParams, 'blockSize', 4, 64, 1)
+            .name('block size (px)')
+            .onChange(v => allCensorMats.forEach(m => m.uniforms.blockSize.value = v));
+        cF.add(censorParams, 'uvCoarseness', 2, 64, 1)
+            .name('color coarseness')
+            .onChange(v => allCensorMats.forEach(m => m.uniforms.uvCoarseness.value = v));
+        cF.add(censorParams, 'fps', 1, 30, 1)
+            .name('stutter fps')
+            .onChange(v => allCensorMats.forEach(m => m.uniforms.fps.value = v));
+        cF.add(censorParams, 'jitter', 0, 0.3, 0.005)
+            .name('jitter amt')
+            .onChange(v => allCensorMats.forEach(m => m.uniforms.jitter.value = v));
+        cF.open();
 
-            gl_FragColor = color;
-        }
-    `
-        });
+        const pF = gui.addFolder('Post Processing');
+        pF.add(postParams, 'pixelate', 1, 16, 1)
+            .name('pixelate size')
+            .onChange(v => pixelatedPass.pixelSize = v);
+        pF.add(postParams, 'posterLevels', 2, 32, 1)
+            .name('poster levels')
+            .onChange(v => posterPass.uniforms.levels.value = v);
+        pF.add(postParams, 'posterStrength', 0, 1, 0.01)
+            .name('poster strength')
+            .onChange(v => posterPass.uniforms.strength.value = v);
+        pF.add(postParams, 'bloomStrength', 0, 3, 0.01)
+            .name('bloom strength')
+            .onChange(v => bloomPass.strength = v);
+        pF.add(postParams, 'bloomRadius', 0, 1, 0.01)
+            .name('bloom radius')
+            .onChange(v => bloomPass.radius = v);
+        pF.add(postParams, 'bloomThreshold', 0, 1, 0.01)
+            .name('bloom threshold')
+            .onChange(v => bloomPass.threshold = v);
+        pF.add(postParams, 'chromaStrength', 0, 0.05, 0.001)
+            .name('chroma shift')
+            .onChange(v => chromaPass.uniforms.aberrationStrength.value = v);
+        pF.close();
 
-        // 6. Load Texture and Model
-        const textureLoader = new THREE.TextureLoader();
-        // --> CHANGE TO YOUR TEXTURE <--
-        const faceTexture = textureLoader.load('fehlemmetalne2.png');
-        dreamFaceMaterial.uniforms.map.value = faceTexture;
+        const lF = gui.addFolder('Lights');
+        lF.add(postParams, 'ambientIntensity', 0, 5, 0.1)
+            .name('ambient')
+            .onChange(v => ambientLight.intensity = v);
+        lF.add(postParams, 'dirIntensity', 0, 10, 0.1)
+            .name('main light')
+            .onChange(v => dirLight.intensity = v);
+        lF.close();
 
-        const loader = new GLTFLoader();
-        // --> CHANGE TO YOUR GLB <--
-        loader.load('android.glb', (gltf) => {
-            const model = gltf.scene;
-            scene.add(model);
-
-            model.traverse((child) => {
-                if (child.isMesh && child.name.includes('FinalEchoMP')) {
-                    if (Array.isArray(child.material)) {
-                        for (let i = 0; i < child.material.length; i++) {
-                            if (child.material[i].name.includes('FE_helmet')) {
-                                if (child.material[i].map) dreamFaceMaterial.uniforms.map.value = child.material[i].map;
-                                child.material[i] = dreamFaceMaterial;
-                                break;
-                            }
-                        }
-                    } else if (child.material.name.includes('FE_helmet')) {
-                        if (child.material.map) dreamFaceMaterial.uniforms.map.value = child.material.map;
-                        child.material = dreamFaceMaterial;
-                    }
-                }
-            });
-        });
-
-        loader.load('Amphibian.glb', (gltf) => {
-            const model = gltf.scene;
-            scene.add(model);
-
-            model.traverse((child) => {
-                if (child.isMesh && child.name.includes('FE_Head_   10')) {
-                    if (Array.isArray(child.material)) {
-                        for (let i = 0; i < child.material.length; i++) {
-                            if (child.material[i].name.includes('FE_helmet_10.001')) {
-                                if (child.material[i].map) dreamFaceMaterial.uniforms.map.value = child.material[i].map;
-                                child.material[i] = dreamFaceMaterial;
-                                break;
-                            }
-                        }
-                    } else if (child.material.name.includes('FE_helmet_10.001')) {
-                        if (child.material.map) dreamFaceMaterial.uniforms.map.value = child.material.map;
-                        child.material = dreamFaceMaterial;
-                    }
-                }
-            });
-        });
-
-        // 7. Animation Loop
+        // ─────────────────────────────────────────────────────────────
+        // ANIMATE
+        // ─────────────────────────────────────────────────────────────
         const clock = new THREE.Clock();
+
         function animate() {
             requestAnimationFrame(animate);
-            controls.update();
-            dreamFaceMaterial.uniforms.time.value = clock.getElapsedTime();
+            orbitControls.update();
 
-            // Use Composer instead of standard render!
+            const t = clock.getElapsedTime();
+            allCensorMats.forEach(m => m.uniforms.time.value = t);
+
             composer.render();
         }
+
         animate();
 
+        // ─────────────────────────────────────────────────────────────
+        // RESIZE
+        // ─────────────────────────────────────────────────────────────
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             composer.setSize(window.innerWidth, window.innerHeight);
+
+            allCensorMats.forEach(m => m.uniforms.resolution.value.set(window.innerWidth, window.innerHeight));
         });
+
     </script>
 </body>
 
