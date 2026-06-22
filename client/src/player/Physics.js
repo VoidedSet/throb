@@ -20,8 +20,8 @@ export default class PlayerPhysics {
         this.SHRINK_AMOUNT = 0.5;
     }
 
-    update(deltaTime) {
-        this.controls(deltaTime);
+    update(deltaTime, keys = this.keyStates) {
+        this.controls(deltaTime, keys);
 
         let damping = Math.exp(-4 * deltaTime) - 1;
 
@@ -91,27 +91,27 @@ export default class PlayerPhysics {
         return this.playerDirection;
     }
 
-    controls(deltaTime) {
+    controls(deltaTime, keys = this.keyStates) {
         const speedDelta = deltaTime * (this.playerOnFloor ? 25 : 8);
 
-        if (this.keyStates['KeyW']) {
+        if (keys['KeyW']) {
             this.playerVelocity.add(this.getForwardVector().multiplyScalar(speedDelta));
         }
 
-        if (this.keyStates['KeyS']) {
+        if (keys['KeyS']) {
             this.playerVelocity.add(this.getForwardVector().multiplyScalar(-speedDelta));
         }
 
-        if (this.keyStates['KeyA']) {
+        if (keys['KeyA']) {
             this.playerVelocity.add(this.getSideVector().multiplyScalar(-speedDelta));
         }
 
-        if (this.keyStates['KeyD']) {
+        if (keys['KeyD']) {
             this.playerVelocity.add(this.getSideVector().multiplyScalar(speedDelta));
         }
 
         if (
-            this.keyStates['ShiftLeft'] &&
+            keys['ShiftLeft'] &&
             this.playerOnFloor &&
             this.playerVelocity.length() > 5 &&
             !this.isSliding &&
@@ -121,7 +121,7 @@ export default class PlayerPhysics {
         }
 
         // Jump
-        if (this.playerOnFloor && this.keyStates['Space']) {
+        if (this.playerOnFloor && keys['Space']) {
             this.playerVelocity.y = 10;
         }
     }
@@ -151,5 +151,14 @@ export default class PlayerPhysics {
 
     isOnFloor() {
         return this.playerOnFloor;
+    }
+
+    applyInput(input) {
+        const originalRotation = this.camera.rotation.clone();
+        if (input.rot) {
+            this.camera.rotation.set(input.rot.x, input.rot.y, input.rot.z);
+        }
+        this.update(input.deltaTime, input.keys);
+        this.camera.rotation.copy(originalRotation);
     }
 }

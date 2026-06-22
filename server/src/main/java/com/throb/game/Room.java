@@ -38,9 +38,9 @@ public class Room {
     }
 
     public void start() {
-        System.out.println("Room " + roomId + " started ticking at 60 tps");
+        System.out.println("Room " + roomId + " started ticking at 20 tps");
         if (isRunning.compareAndSet(false, true)) {
-            gameLoop.scheduleAtFixedRate(this::tick, 0, 16, TimeUnit.MILLISECONDS);
+            gameLoop.scheduleAtFixedRate(this::tick, 0, 50, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -69,6 +69,14 @@ public class Room {
                 JsonNode pos = node.get("pos");
                 JsonNode rot = node.get("rot");
                 // JsonNode vel = node.get("vel");
+
+                if (node.has("seq")) {
+                    int seq = node.get("seq").asInt();
+                    if (seq <= p.lastProcessedSeq) {
+                        return;
+                    }
+                    p.lastProcessedSeq = seq;
+                }
 
                 if (node.has("isMoving"))
                     p.isMoving = node.get("isMoving").asBoolean();
@@ -230,8 +238,8 @@ public class Room {
             case WAITING:
                 if (players.size() >= playerLimit) {
                     state = RoomState.LOADOUT_SELECTION;
-                    stateEndTime = now + 5000; // 20s
-                    System.out.println("Room " + roomId + " -> Loadout");
+                    stateEndTime = now + 15000; // 20s
+                    System.out.println("Room " + roomId + " -> Loadout with wait time " + stateEndTime);
                 }
                 break;
 
@@ -325,9 +333,9 @@ public class Room {
 
                     double decrease = 0.0;
                     if (p.isSprinting)
-                        decrease = (5.0 / 60.0);
+                        decrease = (5.0 / 20.0);
                     else if (p.isMoving)
-                        decrease = (1.0 / 60.0);
+                        decrease = (1.0 / 20.0);
 
                     if (decrease > 0) {
                         // If subtracting this tick would drop below zero, kill now
@@ -407,6 +415,7 @@ public class Room {
                             pNode.put("w2", p.loadout[1]);
                         }
                         pNode.put("ammo", p.ammo);
+                        pNode.put("seq", p.lastProcessedSeq);
                     }
                 }
 

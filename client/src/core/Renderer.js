@@ -74,22 +74,11 @@ export default class Renderer {
 
         const outputPass = new OutputPass();
 
-        // const dither = ditherShader.clone();
-        // dither.uniforms.tDiffuse = { value: null };
-        // dither.uniforms.resolution = { value: new THREE.Vector2(window.innerWidth, window.innerHeight) };
-        // dither.uniforms.colorNum = { value: 7.8 };
-        // dither.uniforms.pixelSize = { value: 2.5 };
-        // dither.uniforms.darknessThreshold = { value: 0.25 }; // adjust this in GUI
-
-        // this.ditherPass = new ShaderPass(dither);
-
         this.composer.addPass(this.pixelatedPass)
         this.composer.addPass(this.posterPass);
 
         this.composer.addPass(this.bloomPass)
         this.composer.addPass(this.chromaticAberrationPass);
-
-        // this.composer.addPass(this.ditherPass);
 
         this.composer.addPass(outputPass);
 

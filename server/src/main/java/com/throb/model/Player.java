@@ -13,6 +13,7 @@ public class Player {
     public double rotX = 0, rotY = 0, rotZ = 0;
     public double vx = 0, vy = 0, vz = 0; // adding velo shi to improve interpolation in player movements and make it
                                           // feel smooth even if the oponents have higher ping
+    public int lastProcessedSeq = -1;
 
     public int health = 100, kills = 0, deaths = 0;
     public String[] loadout = new String[] { "fist", "pistol" };

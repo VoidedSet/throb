@@ -9,6 +9,7 @@ import WeaponManager from '../weapons/Weapons';
 
 export default class Player {
     constructor(engine, keyStates, collider) {
+        this.engine = engine;
         this.camera = engine.camera;
         this.controls = new PointerLockControls(this.camera, document.body);
         this.keyStates = keyStates;
@@ -196,7 +197,24 @@ export default class Player {
     }
 
     update(deltaTime) {
+        const net = this.engine.netManager;
+
+        if (net && !net.predictionEnabled && net.lastServerPos) {
+            const height = this.physics.playerCollider.end.y - this.physics.playerCollider.start.y;
+            this.physics.playerCollider.start.copy(net.lastServerPos);
+            this.physics.playerCollider.end.set(net.lastServerPos.x, net.lastServerPos.y + height, net.lastServerPos.z);
+        }
+
         this.physics.update(deltaTime);
+
+        if (net && !net.predictionEnabled && net.lastServerPos) {
+            this.predictedPos = this.physics.playerCollider.start.clone();
+            const height = this.physics.playerCollider.end.y - this.physics.playerCollider.start.y;
+            this.physics.playerCollider.start.copy(net.lastServerPos);
+            this.physics.playerCollider.end.set(net.lastServerPos.x, net.lastServerPos.y + height, net.lastServerPos.z);
+            this.camera.position.copy(this.physics.playerCollider.end);
+        }
+
         this.cameraEffects.update(deltaTime, this.keyStates);
 
         const time = performance.now() / 1000;

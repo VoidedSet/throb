@@ -116,7 +116,7 @@ export default class Engine {
         this.world?.update(delta);
 
         if (this.netManager) {
-            this.netManager.updatePlayerState();
+            this.netManager.updatePlayerState(delta);
             this.netManager.interpolatePlayers(delta);
         }
 
