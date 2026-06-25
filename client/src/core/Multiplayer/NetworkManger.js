@@ -417,7 +417,7 @@ export default class NetworkManger {
             const playerObj = this.remotePlayers[id];
 
             if (playerObj && pData.pos) {
-                const targetPos = new THREE.Vector3(pData.pos.x, pData.pos.y - 0.7, pData.pos.z);
+                const targetPos = new THREE.Vector3(pData.pos.x, pData.pos.y + 0.65, pData.pos.z);
                 if (!playerObj.userData.targetPos) {
                     playerObj.position.copy(targetPos);
                     playerObj.userData.targetPos = targetPos.clone();
@@ -515,7 +515,7 @@ export default class NetworkManger {
                     seq: this.inputSequence,
                     keys: keysCopy,
                     deltaTime: delta || 0.016,
-                    velocity: player.physics.playerVelocity.clone(),
+                    velocity: player.physics.startingVelocity.clone(),
                     rot: {
                         x: this.camera.rotation.x,
                         y: this.camera.rotation.y,

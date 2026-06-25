@@ -205,6 +205,7 @@ export default class Player {
             this.physics.playerCollider.end.set(net.lastServerPos.x, net.lastServerPos.y + height, net.lastServerPos.z);
         }
 
+        this.physics.startingVelocity.copy(this.physics.playerVelocity);
         this.physics.update(deltaTime);
 
         if (net && !net.predictionEnabled && net.lastServerPos) {

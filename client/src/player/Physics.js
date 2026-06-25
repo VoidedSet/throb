@@ -18,6 +18,7 @@ export default class PlayerPhysics {
 
         this.GRAVITY = 30;
         this.SHRINK_AMOUNT = 0.5;
+        this.startingVelocity = new THREE.Vector3();
     }
 
     update(deltaTime, keys = this.keyStates) {

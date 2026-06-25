@@ -23,7 +23,8 @@ export function spawnRemotePlayers(position, scene, remotePlayers, id) {
 
         head.children[0].material = noiseShaderMaterial.clone();
 
-        body.position.set(position);
+        body.position.copy(position);
+        body.position.y += 0.65;
         body.userData.enemy = id;
 
         remotePlayers[id] = body;
@@ -35,7 +36,7 @@ export function spawnRemotePlayers(position, scene, remotePlayers, id) {
                 new THREE.MeshBasicMaterial({ color: 0x0 })
             );
             body.position.copy(position);
-            body.position.y -= 0.7;
+            body.position.y += 0.65;
             body.userData.enemy = id;
             scene.add(body);
             remotePlayers[id] = body;

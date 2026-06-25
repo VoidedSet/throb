@@ -8,7 +8,7 @@ export class MenuLogic {
         this.menuScene = menuScene;
         this.textManager = menuScene.textManager;
 
-        this.mainOptions = ['Start Game', 'Options', 'Credits', 'Quit'];
+        this.mainOptions = ['Start Game', 'Options'];
         this.roomOptions = ['Join Room', 'Create Room', 'Back'];
 
         this.selectedIndex = 0;
@@ -120,7 +120,7 @@ export class MenuLogic {
     switchToRoomMenu() {
         this.inRoomMenu = true;
         this.selectedIndex = 0;
-        this.textManager.menuMeshes.forEach(mesh => mesh.visible = true);
+        this.textManager.menuMeshes.forEach(mesh => mesh.visible = false);
         this.textManager.roomMeshes = this.textManager.createMenuOptions(this.roomOptions);
         this.textManager.updateSelection(this.textManager.roomMeshes, this.selectedIndex);
     }

@@ -3,8 +3,9 @@ import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 
 export class TextManager {
-    constructor(scene, onReady = () => { }) {
+    constructor(scene, camera, onReady = () => { }) {
         this.scene = scene;
+        this.camera = camera;
         this.fontLoader = new FontLoader();
 
         this.menuMeshes = [];
@@ -13,6 +14,7 @@ export class TextManager {
 
         this.selectedColor = 0xffeb78;
         this.defaultColor = 0xffffff;
+        this.menuScaleFactor = 0.7;
 
         this.fontLoader.load('src/ui/VT323.json', (font) => {
             this.font = font;
@@ -20,17 +22,26 @@ export class TextManager {
         });
     }
 
-    createMenuOptions(options, offsetY = -3, visible = true, animateIn = true) {
+    createMenuOptions(options, offsetY = -7.0, visible = true, animateIn = true) {
         this.clearText();
+
+        const isPerspective = this.camera && this.camera.isPerspectiveCamera;
+        const scale = isPerspective ? 0.0012 : 0.02 * this.menuScaleFactor;
+        const startX = isPerspective ? -0.28 : -8.0;
+        const offsetStep = isPerspective ? 0.055 : 1.5 * this.menuScaleFactor;
+        const yBase = isPerspective ? 1.05 : offsetY;
+        const zPos = isPerspective ? 0.5 : -1;
+        const animStartX = isPerspective ? -1.0 : 20;
+
         this.menuMeshes = options.map((text, i) => {
             const mesh = this._makeTextMesh(text);
-            const targetX = -8.5;
-            mesh.position.set(animateIn ? 20 : targetX, offsetY - i * 1.5, -1);
+            mesh.scale.set(scale, scale, scale);
+            mesh.position.set(animateIn ? animStartX : startX, yBase - i * offsetStep, zPos);
             mesh.visible = true;
             this.scene.add(mesh);
 
             if (animateIn) {
-                this._animateMeshPosition(mesh, targetX, 0.5);
+                this._animateMeshPosition(mesh, startX, 0.5);
             }
 
             return mesh;
@@ -41,12 +52,16 @@ export class TextManager {
 
 
     updateSelection(meshes, selectedIndex) {
+        const isPerspective = this.camera && this.camera.isPerspectiveCamera;
+        const scale = isPerspective ? 0.0012 : 0.02 * this.menuScaleFactor;
+        const scaleY = isPerspective ? 0.0017 : 0.028 * this.menuScaleFactor;
+
         meshes.forEach((mesh, i) => {
             if (i === selectedIndex) {
-                mesh.scale.set(0.02, 0.028, 0.02);
+                mesh.scale.set(scale, scaleY, scale);
                 mesh.material.color.set(this.selectedColor);
             } else {
-                mesh.scale.set(0.02, 0.02, 0.02);
+                mesh.scale.set(scale, scale, scale);
                 mesh.material.color.set(this.defaultColor);
             }
         });
@@ -65,10 +80,23 @@ export class TextManager {
             bevelEnabled: false
         });
 
+        const isPerspective = this.camera && this.camera.isPerspectiveCamera;
+        const scale = isPerspective ? 0.0012 : 0.02 * this.menuScaleFactor;
+
+        let adjustedPos = position.clone();
+        if (isPerspective) {
+            const idx = Math.round((-3 - position.y) / 1.5);
+            adjustedPos.set(0.1, 1.05 - idx * 0.055, 0.5);
+        } else {
+            // Adjust the Y position to match the bottom-left layout
+            const idx = Math.round((-3 - position.y) / 1.5);
+            adjustedPos.y = -7.0 - idx * (1.5 * this.menuScaleFactor);
+        }
+
         const mat = new THREE.MeshBasicMaterial({ color: this.selectedColor });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.scale.set(0.02, 0.02, 0.02);
-        mesh.position.copy(position);
+        mesh.scale.set(scale, scale, scale);
+        mesh.position.copy(adjustedPos);
         this.codeMesh = mesh;
         this.scene.add(mesh);
     }
@@ -92,7 +120,9 @@ export class TextManager {
         });
         const mat = new THREE.MeshBasicMaterial({ color: this.defaultColor });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.scale.set(0.02, 0.02, 0.02);
+        const isPerspective = this.camera && this.camera.isPerspectiveCamera;
+        const scale = isPerspective ? 0.0012 : 0.02 * this.menuScaleFactor;
+        mesh.scale.set(scale, scale, scale);
         return mesh;
     }
 
@@ -108,7 +138,7 @@ export class TextManager {
             }
         };
 
-        requestAnimationFrame(animate);
+        const reqId = requestAnimationFrame(animate);
     }
 
 }
