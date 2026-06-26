@@ -39,6 +39,10 @@ export default class Player {
         this.loadBody();
         this.loadAudio();
 
+        this.controls.addEventListener('change', () => {
+            this.cameraEffects.onControlsChange();
+        });
+
         document.body.addEventListener('click', () => {
             this.controls.lock();
             // document.getElementById('blocked').style.display = 'none'

@@ -51,8 +51,8 @@ export class MenuScene {
         // Posterization
         const posterPass = new ShaderPass(PosterizationShader);
         posterPass.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
-        posterPass.uniforms.levels.value = 5.0;
-        posterPass.uniforms.strength.value = 0.5;
+        posterPass.uniforms.levels.value = 10.0;
+        posterPass.uniforms.strength.value = 0.8;
         this.composer.addPass(posterPass);
         this.posterPass = posterPass;
 
@@ -66,9 +66,9 @@ export class MenuScene {
         // Bloom Pass (cinematic atmospheric glow)
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            0.1,   // strength
-            0.0,   // radius
-            0.05   // threshold
+            0.3,   // strength
+            0.25,   // radius
+            0.06   // threshold
         );
         this.composer.addPass(bloomPass);
         this.bloomPass = bloomPass;
@@ -77,16 +77,16 @@ export class MenuScene {
 
         this.clock = new THREE.Clock();
 
-        this.waveUniforms = this.createWaveUniforms();
+        this.menuLogic = new MenuLogic(this);
         this.textManager = new TextManager(this.uiScene, this.uiCamera, () => {
-            this.textManager.createMenuOptions(['Start Game', 'Options']);
+            this.textManager.createMenuOptions(this.menuLogic.mainOptions);
             this.textManager.updateSelection(this.textManager.menuMeshes, 0);
         });
-        this.menuLogic = new MenuLogic(this);
+        this.menuLogic.textManager = this.textManager;
 
         this.setupBackground();
         this.setupSoundtrack();
-        this.setupGUI();
+        // this.setupGUI();
 
         this.animate = this.animate.bind(this);
         this.animate();
@@ -94,20 +94,6 @@ export class MenuScene {
         this.addEventListeners();
 
         this.transitionStarted = false;
-    }
-
-    createWaveUniforms() {
-        return {
-            resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-            time: { value: 0 },
-            waveSpeed: { value: 0.1 },
-            waveFrequency: { value: 1.0 },
-            waveAmplitude: { value: 0.26 },
-            waveColor: { value: new THREE.Color('#ab9fad') },
-            mousePos: { value: new THREE.Vector2() },
-            enableMouseInteraction: { value: 1 },
-            mouseRadius: { value: 0.2 }
-        };
     }
 
     setupBackground() {
@@ -199,17 +185,17 @@ export class MenuScene {
             this.scene.add(gltf.scene);
             this.characterModel = gltf.scene;
 
-            console.log("--- Character Mesh & Material Names List ---");
+            // console.log("--- Character Mesh & Material Names List ---");
             gltf.scene.traverse((child) => {
                 if (!child.isMesh) return;
                 child.castShadow = true;
 
                 const mats = Array.isArray(child.material) ? child.material : [child.material];
-                mats.forEach((m) => {
-                    if (m && m.name) {
-                        console.log(`Mesh: "${child.name}" | Material: "${m.name}"`);
-                    }
-                });
+                // mats.forEach((m) => {
+                //     if (m && m.name) {
+                //         console.log(`Mesh: "${child.name}" | Material: "${m.name}"`);
+                //     }
+                // });
 
                 mats.forEach((m, idx) => {
                     if (!m || !m.name || !m.name.includes('FE_helmet')) return;
@@ -218,7 +204,7 @@ export class MenuScene {
                     const matColor = m.color ? m.color.clone() : new THREE.Color(0xffffff);
                     const useMapValue = mapTexture ? 1.0 : 0.0;
 
-                    console.log(`Applying censor shader to material: "${m.name}". Map: ${!!mapTexture}, Color: #${matColor.getHexString()}`);
+                    // console.log(`Applying censor shader to material: "${m.name}". Map: ${!!mapTexture}, Color: #${matColor.getHexString()}`);
 
                     const matInstance = this.censorMat.clone();
                     matInstance.uniforms.map.value = mapTexture;
@@ -278,40 +264,40 @@ export class MenuScene {
         // ground.position.y = 0;
         // this.scene.add(ground);
 
-        // Title text "THROB" behind the player
-        const fontLoader = new FontLoader();
-        fontLoader.load('src/ui/VT323.json', (font) => {
-            const titleGeo = new TextGeometry('THROB', {
-                font: font,
-                size: 40,
-                height: 40,
-                curveSegments: 2,
-                bevelEnabled: false
-            });
-            titleGeo.computeBoundingBox();
-            const width = titleGeo.boundingBox.max.x - titleGeo.boundingBox.min.x;
-
-            const scale = 0.01;
-            const centerOffset = -0.5 * width * scale;
-
-            const titleMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
-            const titleMesh = new THREE.Mesh(titleGeo, titleMat);
-            titleMesh.scale.set(scale, scale, scale);
-            titleMesh.position.set(centerOffset, 1.35, -0.45);
-            titleMesh.rotation.x = 0.35; // tilt downwards towards camera
-            this.scene.add(titleMesh);
-        });
+        // Title text "THROB" behind the player (Commented out - now using orthographic HUD title)
+        // const fontLoader = new FontLoader();
+        // fontLoader.load('src/ui/VT323.json', (font) => {
+        //     const titleGeo = new TextGeometry('THROB', {
+        //         font: font,
+        //         size: 40,
+        //         height: 40,
+        //         curveSegments: 2,
+        //         bevelEnabled: false
+        //     });
+        //     titleGeo.computeBoundingBox();
+        //     const width = titleGeo.boundingBox.max.x - titleGeo.boundingBox.min.x;
+        // 
+        //     const scale = 0.01;
+        //     const centerOffset = -0.5 * width * scale;
+        // 
+        //     const titleMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+        //     const titleMesh = new THREE.Mesh(titleGeo, titleMat);
+        //     titleMesh.scale.set(scale, scale, scale);
+        //     titleMesh.position.set(centerOffset, 1.35, -0.45);
+        //     titleMesh.rotation.x = 0.35; // tilt downwards towards camera
+        //     this.scene.add(titleMesh);
+        // });
 
         // Procedural Background Smoke/Mist Plane
         const smokeGeo = new THREE.PlaneGeometry(10, 10);
         const smokeShaderMat = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0.0 },
-                smokeBaseColor: { value: new THREE.Color(0.506, 0.38, 0.62) }, // #81619e
-                smokeGlowColor: { value: new THREE.Color(0.827, 0.741, 0.624) }, // #d3bd9f
-                smokeGlowIntensity: { value: 2.2 },
+                smokeBaseColor: { value: new THREE.Color(92 / 255, 51 / 255, 142 / 255) }, // rgb(92, 51, 142)
+                smokeGlowColor: { value: new THREE.Color(211 / 255, 189 / 255, 159 / 255) }, // rgb(211, 189, 159)
+                smokeGlowIntensity: { value: 0.5 },
                 smokeWindSpeed: { value: 2.0 },
-                smokeOpacity: { value: 0.2 }
+                smokeOpacity: { value: 0.5 }
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -388,12 +374,6 @@ export class MenuScene {
         const delta = this.clock.getDelta();
         const time = performance.now() / 1000;
 
-        if (this.waveUniforms) {
-            this.waveUniforms.time.value = time;
-        }
-
-        this.menuLogic.updateWaveParams(delta);
-
         // Update censor shader time uniforms
         if (this.censorMat) {
             this.censorMat.uniforms.time.value = time;
@@ -422,6 +402,17 @@ export class MenuScene {
             this.camera.lookAt(0, this.cameraLookAtHeight, 0);
         }
 
+        // Update selector cursor position dynamically to follow the active mesh (e.g. during slide-in animation)
+        if (this.textManager && this.textManager.selectorCursor && this.textManager.selectorCursor.visible) {
+            const activeMeshes = this.menuLogic.inRoomMenu ? this.textManager.roomMeshes : this.textManager.menuMeshes;
+            const idx = this.menuLogic.selectedIndex;
+            if (activeMeshes && activeMeshes[idx]) {
+                const mesh = activeMeshes[idx];
+                this.textManager.selectorCursor.position.x = mesh.position.x - 0.8;
+                this.textManager.selectorCursor.position.y = mesh.position.y;
+            }
+        }
+
         this.composer.render(); // Render 3D scene via composer (clears automatically)
 
         this.renderer.autoClear = false; // Prevent UI pass from clearing composer output
@@ -432,18 +423,9 @@ export class MenuScene {
         requestAnimationFrame(this.animate);
     }
 
-    onMouseMove(e) {
-        if (this.waveUniforms) {
-            this.waveUniforms.mousePos.value.set(e.clientX, e.clientY);
-        }
-    }
-
     onResize() {
         const w = window.innerWidth, h = window.innerHeight;
         this.renderer.setSize(w, h);
-        if (this.waveUniforms) {
-            this.waveUniforms.resolution.value.set(w, h);
-        }
         if (this.camera) {
             this.camera.aspect = w / h;
             this.camera.updateProjectionMatrix();
@@ -463,11 +445,9 @@ export class MenuScene {
     }
 
     addEventListeners() {
-        this.boundMouseMove = this.onMouseMove.bind(this);
         this.boundResize = this.onResize.bind(this);
         this.boundKeyDown = (e) => this.menuLogic.handleKeyDown(e);
 
-        window.addEventListener('mousemove', this.boundMouseMove);
         window.addEventListener('resize', this.boundResize);
         window.addEventListener('keydown', this.boundKeyDown);
     }
@@ -484,7 +464,6 @@ export class MenuScene {
         this.running = false;
         window.removeEventListener('keydown', this.boundKeyDown);
         window.removeEventListener('resize', this.boundResize);
-        window.removeEventListener('mousemove', this.boundMouseMove);
         document.body.removeChild(this.renderer.domElement);
 
         if (this._onGuiKeyDown) {
@@ -575,7 +554,7 @@ export class MenuScene {
                         statusLabel.innerText = 'SOUNDTRACK: PLAYING';
                         playBtn.innerText = 'PAUSE';
                     })
-                    .catch(() => {});
+                    .catch(() => { });
             }
             window.removeEventListener('click', startOnFirstClick);
         };
@@ -586,7 +565,7 @@ export class MenuScene {
     setupGUI() {
         const gui = new GUI({ title: 'Scene Tweaker (Press H to hide)' });
         this.gui = gui;
-        
+
         gui.domElement.style.position = 'absolute';
         gui.domElement.style.top = '10px';
         gui.domElement.style.right = '10px';

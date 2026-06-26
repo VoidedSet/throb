@@ -21,25 +21,57 @@ export default class CameraEffects {
         this.fovChangeSpeed = 5;
 
         this.shakeIntensity = 0;
+
+        // Base look rotation (controlled by mouse movement via PointerLockControls)
+        this.basePitch = camera.rotation.x;
+        this.baseYaw = camera.rotation.y;
+
+        // Offsets applied on top of the base rotation
+        this.recoilX = 0;
+        this.shakeX = 0;
+        this.shakeY = 0;
+    }
+
+    onControlsChange() {
+        // When mouse moves, PointerLockControls updates the camera rotation.
+        // We extract the base look rotation by subtracting our active offsets.
+        this.basePitch = this.camera.rotation.x - (this.recoilX + this.shakeX);
+        this.baseYaw = this.camera.rotation.y - this.shakeY;
+    }
+
+    applyRecoil(amount) {
+        this.recoilX = Math.min(this.recoilX + amount, 0.3);
+        this.triggerShake(amount * 0.1);
     }
 
     triggerShake(intensity = 0.05) {
         this.shakeIntensity = intensity;
     }
 
-
     update(deltaTime, keyStates) {
-
         this.updateHeadBob(deltaTime, keyStates);
+
+        // Decay recoil offset
+        this.recoilX = THREE.MathUtils.lerp(this.recoilX, 0, deltaTime * 12);
+
+        // Shake offsets
         if (this.shakeIntensity > 0.001) {
-            const shakeX = (Math.random() - 0.5) * this.shakeIntensity;
-            const shakeY = (Math.random() - 0.5) * this.shakeIntensity;
-
-            this.camera.rotateX(shakeY);
-            this.camera.rotateY(shakeX);
-
+            this.shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeY = (Math.random() - 0.5) * this.shakeIntensity;
             this.shakeIntensity = this.lerp(this.shakeIntensity, 0, deltaTime * 10);
+        } else {
+            this.shakeX = 0;
+            this.shakeY = 0;
+            this.shakeIntensity = 0;
         }
+
+        // Apply base rotation plus offsets to the camera rotation (order YXZ is standard for FPS)
+        this.camera.rotation.set(
+            this.basePitch + this.recoilX + this.shakeX,
+            this.baseYaw + this.shakeY,
+            0,
+            'YXZ'
+        );
     }
 
     updateHeadBob(deltaTime, keyStates) {

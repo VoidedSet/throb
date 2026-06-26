@@ -22,7 +22,7 @@ public class Room {
     private final ObjectMapper mapper = new ObjectMapper();
 
     private RoomState state = RoomState.WAITING;
-    private int playerLimit = 2;
+    private int playerLimit = 1;
     private long stateEndTime = 0;
 
     // private int bloodGauge = 0, maxBloodGauge = 400;
@@ -238,7 +238,7 @@ public class Room {
             case WAITING:
                 if (players.size() >= playerLimit) {
                     state = RoomState.LOADOUT_SELECTION;
-                    stateEndTime = now + 15000; // 20s
+                    stateEndTime = now + 5000; // 20s
                     System.out.println("Room " + roomId + " -> Loadout with wait time " + stateEndTime);
                 }
                 break;

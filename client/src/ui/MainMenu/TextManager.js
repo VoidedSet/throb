@@ -18,8 +18,56 @@ export class TextManager {
 
         this.fontLoader.load('src/ui/VT323.json', (font) => {
             this.font = font;
+
+            // Create selector cursor mesh
+            const cursorGeo = new TextGeometry('>', {
+                font: this.font,
+                size: 40,
+                height: 1,
+                curveSegments: 1,
+                bevelEnabled: false
+            });
+            const cursorMat = new THREE.MeshBasicMaterial({ color: this.selectedColor });
+            this.selectorCursor = new THREE.Mesh(cursorGeo, cursorMat);
+            const cursorScale = 0.02 * this.menuScaleFactor;
+            this.selectorCursor.scale.set(cursorScale, cursorScale, cursorScale);
+            this.selectorCursor.visible = false;
+            this.scene.add(this.selectorCursor);
+
+            // Create the static HUD decoration and title
+            this.createHUD();
+
             onReady(); // Now safe to spawn text
         });
+    }
+
+    createHUD() {
+        if (!this.font) return;
+
+        if (this.hudMeshes) {
+            this.hudMeshes.forEach(mesh => this.scene.remove(mesh));
+        }
+        this.hudMeshes = [];
+
+        // 1. Large Game Title: THROB
+        const titleMesh = this._makeHUDText('THROB', -9, -2.5, 0.055, 0xff0055);
+        this.hudMeshes.push(titleMesh);
+    }
+
+    _makeHUDText(text, x, y, scale = 0.015, color = 0x888888) {
+        const geo = new TextGeometry(text, {
+            font: this.font,
+            size: 40,
+            height: 1,
+            curveSegments: 1,
+            bevelEnabled: false
+        });
+        const mat = new THREE.MeshBasicMaterial({ color: color });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.scale.set(scale, scale, scale);
+        mesh.position.set(x, y, -1);
+        this.scene.add(mesh);
+        return mesh;
     }
 
     createMenuOptions(options, offsetY = -7.0, visible = true, animateIn = true) {
@@ -52,6 +100,10 @@ export class TextManager {
 
 
     updateSelection(meshes, selectedIndex) {
+        if (!meshes || meshes.length === 0) {
+            if (this.selectorCursor) this.selectorCursor.visible = false;
+            return;
+        }
         const isPerspective = this.camera && this.camera.isPerspectiveCamera;
         const scale = isPerspective ? 0.0012 : 0.02 * this.menuScaleFactor;
         const scaleY = isPerspective ? 0.0017 : 0.028 * this.menuScaleFactor;
@@ -60,6 +112,10 @@ export class TextManager {
             if (i === selectedIndex) {
                 mesh.scale.set(scale, scaleY, scale);
                 mesh.material.color.set(this.selectedColor);
+                if (this.selectorCursor) {
+                    this.selectorCursor.position.set(mesh.position.x - 0.8, mesh.position.y, mesh.position.z);
+                    this.selectorCursor.visible = mesh.visible;
+                }
             } else {
                 mesh.scale.set(scale, scale, scale);
                 mesh.material.color.set(this.defaultColor);
@@ -108,6 +164,7 @@ export class TextManager {
         this.menuMeshes = [];
         this.roomMeshes = [];
         this.codeMesh = null;
+        if (this.selectorCursor) this.selectorCursor.visible = false;
     }
 
     _makeTextMesh(text) {

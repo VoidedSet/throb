@@ -294,8 +294,7 @@ export default class WeaponManager {
     }
 
     applyRecoil(amount) {
-        this.player.recoilAngle = Math.min(this.recoilAngle + amount, 0.3);
-        this.player.cameraEffects.triggerShake(amount * 0.1)
+        this.player.cameraEffects.applyRecoil(amount);
     }
 
     getRayDirectionWithSpread(spread) {

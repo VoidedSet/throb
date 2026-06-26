@@ -38,5 +38,7 @@ async function loadCustomFont(name, url) {
     console.log(`[Font] Loaded font "${name}" from ${url}`);
 }
 
-await loadCustomFont('VT323', 'src/ui/VT323.ttf');
-await loadCustomFont('Miskan', 'src/ui/Miskan/Miskan.ttf')
+(async () => {
+    await loadCustomFont('VT323', 'src/ui/VT323.ttf');
+    await loadCustomFont('Miskan', 'src/ui/Miskan/Miskan.ttf');
+})();

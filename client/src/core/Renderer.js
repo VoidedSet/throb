@@ -26,10 +26,10 @@ export default class Renderer {
 
 
         // WebGL Renderer with proper output encoding
-        this.renderer = new THREE.WebGLRenderer({ antialias: false });
+        this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.renderer.outputEncoding = THREE.sRGBEncoding; // Prevents color darkening
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace; // Prevents color darkening
         document.body.appendChild(this.renderer.domElement);
 
         // Effect Composer
@@ -45,14 +45,14 @@ export default class Renderer {
         this.screenCenter = new THREE.Vector2(0, 0); // normalized screen center
 
         this.initRenderPasses();
-        // this.initDebugUI();
+        this.initDebugUI();
     }
 
     initRenderPasses() {
 
 
-        this.pixelatedPass = new RenderPixelatedPass(3, this.scene, this.camera, {
-            normalEdgeStrength: 0.4,
+        this.pixelatedPass = new RenderPixelatedPass(5, this.scene, this.camera, {
+            normalEdgeStrength: 0.5,
             depthEdgeStrength: 0.4
         })
 
@@ -63,9 +63,9 @@ export default class Renderer {
 
         this.bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            0.1,
+            0.15,
             0.2,
-            0.1
+            0.09
         );
 
         this.chromaticAberrationPass = new ShaderPass(RadialChromaticAberrationShader);
@@ -82,7 +82,7 @@ export default class Renderer {
 
         this.composer.addPass(outputPass);
 
-        this.bloomPass.strength = 3;
+        // this.bloomPass.strength = 3;
         this.lerpBloomTo(0.1, 0.5)
     }
 

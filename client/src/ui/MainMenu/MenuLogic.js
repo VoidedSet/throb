@@ -1,15 +1,13 @@
 // File: UI/mainMenu/MenuLogic.js
 
 import * as THREE from 'three';
-import { waveShader } from '../../art/shaders/waveShader';
-
 export class MenuLogic {
     constructor(menuScene) {
         this.menuScene = menuScene;
         this.textManager = menuScene.textManager;
 
-        this.mainOptions = ['Start Game', 'Options'];
-        this.roomOptions = ['Join Room', 'Create Room', 'Back'];
+        this.mainOptions = ['START', 'SETTINGS'];
+        this.roomOptions = ['JOIN ROOM', 'CREATE ROOM', 'BACK'];
 
         this.selectedIndex = 0;
         this.inRoomMenu = false;
@@ -17,46 +15,6 @@ export class MenuLogic {
         this.joinCode = '';
 
         this.hasTriggeredJoin = false;
-    }
-
-    getWaveMaterial(uniforms) {
-        const material = waveShader.clone();
-        material.uniforms = uniforms;
-        return material;
-    }
-
-    updateWaveParams(delta) {
-        if (!this.menuScene.currentWave) {
-            this.menuScene.currentWave = {
-                speed: 0.05,
-                freq: 3.0,
-                amp: 0.3
-            };
-        }
-
-        const target = this.getCurrentWaveTarget();
-        const wave = this.menuScene.currentWave;
-
-        wave.speed += (target.speed - wave.speed) * 5 * delta;
-        wave.freq += (target.freq - wave.freq) * 5 * delta;
-        wave.amp += (target.amp - wave.amp) * 5 * delta;
-
-        const uniforms = this.menuScene.waveUniforms;
-        uniforms.waveSpeed.value = wave.speed;
-        uniforms.waveFrequency.value = wave.freq;
-        uniforms.waveAmplitude.value = wave.amp;
-    }
-
-    getCurrentWaveTarget() {
-        const list = this.inRoomMenu ? this.roomOptions : this.mainOptions;
-        const i = this.selectedIndex;
-        return [
-            { speed: 0.6, freq: 9, amp: 0.8 },
-            { speed: 0.3, freq: 5, amp: 0.4 },
-            { speed: 0.25, freq: 2.5, amp: 0.2 },
-            { speed: 0.1, freq: -0.1, amp: -0.1 },
-            { speed: 0.7, freq: 10, amp: 1.0 }
-        ][i] || { speed: 0.2, freq: 2, amp: 0.2 };
     }
 
     handleKeyDown(e) {
@@ -86,18 +44,17 @@ export class MenuLogic {
                 this.selectedIndex = (this.selectedIndex + 1) % this.roomOptions.length;
                 text.updateSelection(text.roomMeshes, this.selectedIndex);
             } else if (e.key === 'Enter') {
-                const selected = this.roomOptions[this.selectedIndex];
-                if (selected === 'Join Room') {
+                if (this.selectedIndex === 0) { // Join Room
                     this.enteringCode = true;
                     this.joinCode = '';
                     text.updateCodeText('', new THREE.Vector3(5, -3 - this.selectedIndex * 1.5, -1));
-                } else if (selected === 'Create Room') {
+                } else if (this.selectedIndex === 1) { // Create Room
                     if (this.hasTriggeredJoin) return;
                     this.hasTriggeredJoin = true;
                     const newCode = Math.floor(1000 + Math.random() * 9000);
                     this.selectedIndex = 4;
                     this.menuScene.startGameWithRoom(newCode);
-                } else if (selected === 'Back') {
+                } else if (this.selectedIndex === 2) { // Back
                     this.returnToMainMenu();
                 }
             }
@@ -111,7 +68,7 @@ export class MenuLogic {
             this.selectedIndex = (this.selectedIndex + 1) % this.mainOptions.length;
             text.updateSelection(text.menuMeshes, this.selectedIndex);
         } else if (e.key === 'Enter') {
-            if (this.mainOptions[this.selectedIndex] === 'Start Game') {
+            if (this.selectedIndex === 0) { // Start System
                 this.switchToRoomMenu();
             }
         }
